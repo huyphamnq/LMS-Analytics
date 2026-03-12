@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learning Analytics Dashboard</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- TailwindCSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#4338ca',
+                        secondary: '#6366f1',
+                        dark: '#0f172a',
+                        card: '#ffffff',
+                        risk: '#ef4444',
+                        safe: '#10b981'
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans" onload="initDashboard()">
+
+    <div class="flex h-screen overflow-hidden">
+        
+        <!-- Sidebar -->
+        <aside class="w-64 bg-dark text-white flex flex-col shadow-xl z-20 transition-all duration-300">
+            <div class="h-16 flex items-center justify-center border-b border-slate-700/50">
+                <i class="fa-solid fa-chart-pie text-secondary text-2xl mr-3"></i>
+                <h1 class="text-xl font-bold tracking-wide">EduAnalytics</h1>
+            </div>
+            
+            <nav class="flex-1 py-6 px-3 space-y-2 overflow-y-auto custom-scrollbar">
+                <a href="#" onclick="switchTab('overview')" id="nav-overview" class="nav-item active flex items-center px-4 py-3 rounded-lg transition-colors group">
+                    <i class="fa-solid fa-house w-6 group-hover:text-secondary transition-colors"></i>
+                    <span class="font-medium">Tổng quan</span>
+                </a>
+                
+                <a href="#" onclick="switchTab('early-warning')" id="nav-early-warning" class="nav-item flex items-center px-4 py-3 rounded-lg opacity-70 hover:opacity-100 hover:bg-slate-800 transition-colors group">
+                    <i class="fa-solid fa-bell w-6 text-risk group-hover:text-red-400 transition-colors"></i>
+                    <span class="font-medium">Cảnh báo sớm</span>
+                </a>
+                
+                <a href="#" onclick="switchTab('student-analysis')" id="nav-student-analysis" class="nav-item flex items-center px-4 py-3 rounded-lg opacity-70 hover:opacity-100 hover:bg-slate-800 transition-colors group">
+                    <i class="fa-solid fa-users w-6 group-hover:text-secondary transition-colors"></i>
+                    <span class="font-medium">Phân tích sinh viên</span>
+                </a>
+                
+                <a href="#" onclick="switchTab('anomaly-detection')" id="nav-anomaly-detection" class="nav-item flex items-center px-4 py-3 rounded-lg opacity-70 hover:opacity-100 hover:bg-slate-800 transition-colors group">
+                    <i class="fa-solid fa-triangle-exclamation w-6 text-amber-400 group-hover:text-amber-300 transition-colors"></i>
+                    <span class="font-medium">Phát hiện bất thường</span>
+                </a>
+                
+                <a href="#" onclick="switchTab('intervention-history')" id="nav-intervention-history" class="nav-item flex items-center px-4 py-3 rounded-lg opacity-70 hover:opacity-100 hover:bg-slate-800 transition-colors group">
+                    <i class="fa-solid fa-clipboard-list w-6 group-hover:text-secondary transition-colors"></i>
+                    <span class="font-medium">Lịch sử can thiệp</span>
+                </a>
+            </nav>
+            
+            <div class="p-4 border-t border-slate-700/50 text-sm opacity-60 flex items-center justify-center">
+                Giảng viên: Trần Văn A
+            </div>
+        </aside>
+
+        <!-- Main ContentWrapper -->
+        <main class="flex-1 flex flex-col relative overflow-hidden bg-slate-50/50">
+            
+            <!-- Navbar -->
+            <header class="h-16 bg-white/80 backdrop-blur-md shadow-sm flex items-center justify-between px-8 z-10 sticky top-0">
+                <h2 id="page-title" class="text-xl font-bold text-slate-800">Tổng quan lớp học</h2>
+                <div class="flex items-center space-x-4">
+                    <!-- API KEY INPUT -->
+                    <div class="relative flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 mr-4">
+                        <i class="fa-solid fa-key text-amber-500 text-sm mr-2"></i>
+                        <input type="password" id="gemini-api-key" placeholder="Nhập Gemini API Key" class="bg-transparent border-none focus:outline-none text-sm w-48 text-slate-700 placeholder-slate-400">
+                    </div>
+                    
+                    <div class="relative">
+                        <i class="fa-solid fa-bell text-slate-400 hover:text-slate-600 cursor-pointer text-lg transition-colors"></i>
+                        <span class="absolute -top-1 -right-1 flex h-3 w-3">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-risk opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-3 w-3 bg-risk text-[8px] text-white items-center justify-center">3</span>
+                        </span>
+                    </div>
+                    <div class="flex items-center space-x-2 pl-4 border-l">
+                        <img src="https://ui-avatars.com/api/?name=Tran+Van+A&background=6366f1&color=fff" class="w-8 h-8 rounded-full border border-slate-200">
+                    </div>
+                </div>
+            </header>
+
+            <!-- Scrollable Content -->
+            <div class="flex-1 overflow-y-auto p-8 custom-scrollbar relative">
+                
+                <!-- Loading Overlay -->
+                <div id="loading-overlay" class="absolute inset-0 bg-slate-50/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-3"></div>
+                    <p class="text-slate-500 font-medium">Đang tải dữ liệu...</p>
+                </div>
+
+                <!-- 1. TỔNG QUAN -->
+                <div id="tab-overview" class="tab-content block animate-fade-in">
+                    <!-- Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 card-hover flex flex-col justify-between">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500 mb-1">Tổng sinh viên</p>
+                                    <h3 class="text-3xl font-bold text-slate-800" id="stat-total">--</h3>
+                                </div>
+                                <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
+                                    <i class="fa-solid fa-users"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 card-hover flex flex-col justify-between">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500 mb-1">An toàn</p>
+                                    <h3 class="text-3xl font-bold text-safe" id="stat-safe">--</h3>
+                                </div>
+                                <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
+                                    <i class="fa-solid fa-check-circle"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 card-hover flex flex-col justify-between">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500 mb-1">Nguy cơ cao</p>
+                                    <h3 class="text-3xl font-bold text-risk" id="stat-risk">--</h3>
+                                </div>
+                                <div class="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-500 pt-1">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 card-hover flex flex-col justify-between relative overflow-hidden">
+                            <div class="flex justify-between items-start relative z-10">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500 mb-1">Tỷ lệ rủi ro</p>
+                                    <h3 class="text-3xl font-bold text-slate-800" id="stat-percent">--%</h3>
+                                </div>
+                                <div class="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-500">
+                                    <i class="fa-solid fa-chart-line"></i>
+                                </div>
+                            </div>
+                            <!-- Trang trí vạch mờ -->
+                            <div class="absolute -right-4 -bottom-4 opacity-10 text-6xl">
+                                <i class="fa-solid fa-percent"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts row -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 col-span-1 flex flex-col items-center justify-center">
+                            <h3 class="w-full text-left font-semibold text-slate-700 mb-4">Tỷ lệ An toàn vs Nguy cơ</h3>
+                            <div class="relative w-full max-w-[220px] aspect-square">
+                                <canvas id="pieChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 col-span-1 lg:col-span-2">
+                             <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-semibold text-slate-700">Tỷ lệ sinh viên nguy cơ theo tuần</h3>
+                                <div class="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full">
+                                    <i class="fa-solid fa-circle text-primary text-[8px] mr-1"></i> Tỷ lệ (%)
+                                </div>
+                             </div>
+                            <div class="relative w-full h-[250px]">
+                                <canvas id="lineChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. CẢNH BÁO SỚM -->
+                <div id="tab-early-warning" class="tab-content hidden animate-fade-in">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-red-50/30">
+                            <h3 class="font-semibold text-risk flex items-center">
+                                <i class="fa-solid fa-triangle-exclamation mr-2"></i> Danh sách sinh viên cần chú ý
+                            </h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 text-slate-500 text-sm uppercase tracking-wider">
+                                        <th class="py-4 px-6 font-medium">Mã SV</th>
+                                        <th class="py-4 px-6 font-medium">Họ và Tên</th>
+                                        <th class="py-4 px-6 font-medium">Xác suất rủi ro</th>
+                                        <th class="py-4 px-6 font-medium">Chỉ số nỗ lực</th>
+                                        <th class="py-4 px-6 font-medium">Trạng thái</th>
+                                        <th class="py-4 px-6 font-medium">Hành động</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="warning-list" class="divide-y divide-slate-100">
+                                    <!-- Dynamic rows inserted by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. PHÂN TÍCH SINH VIÊN -->
+                <div id="tab-student-analysis" class="tab-content hidden animate-fade-in">
+                    <div class="flex gap-6 h-full">
+                        <!-- Danh sách bên trái -->
+                        <div class="w-1/3 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col max-h-[700px]">
+                            <div class="p-4 border-b border-slate-100">
+                                <div class="relative">
+                                    <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                    <input type="text" id="search-student" placeholder="Tìm sinh viên..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm transition-all text-slate-700">
+                                </div>
+                            </div>
+                            <div class="flex-1 overflow-y-auto custom-scrollbar p-2" id="full-student-list">
+                                <!-- Dynamic JS -->
+                            </div>
+                        </div>
+
+                        <!-- Panel Phải - Chi tiết -->
+                        <div class="w-2/3 bg-white rounded-2xl shadow-sm border border-slate-100 p-6 relative" id="student-detail-panel">
+                            <div class="absolute inset-0 flex flex-col items-center justify-center text-slate-400" id="empty-student-state">
+                                <div class="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center mb-4">
+                                    <i class="fa-regular fa-hand-pointer text-3xl"></i>
+                                </div>
+                                <p>Chọn một sinh viên từ danh sách để xem phân tích</p>
+                            </div>
+
+                            <div id="student-content" class="hidden h-full flex flex-col h-[700px] overflow-y-auto">
+                                <!-- Header Info -->
+                                <div class="flex justify-between items-start border-b border-slate-100 pb-4 mb-6">
+                                    <div>
+                                        <h2 class="text-2xl font-bold text-slate-800" id="detail-name">Nguyễn Văn A</h2>
+                                        <p class="text-slate-500 mt-1" id="detail-id">SV20210001 • Nhập môn Lập trình</p>
+                                    </div>
+                                    <div class="flex items-center space-x-3">
+                                        <button onclick="explainWithAI()" id="btn-explain-ai" class="hidden text-sm bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white px-4 py-1.5 rounded-full transition-all shadow-md font-medium flex items-center">
+                                            <i class="fa-solid fa-wand-magic-sparkles mr-2 text-yellow-200"></i> AI Giải thích
+                                        </button>
+                                        <span id="detail-badge" class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-semibold border border-emerald-200">
+                                            An toàn
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <!-- AI EXPLANATION BOX -->
+                                <div id="ai-explanation-box" class="hidden mb-6 bg-purple-50 border border-purple-100 rounded-xl p-4">
+                                    <div class="flex items-start">
+                                        <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 mt-0.5 shrink-0">
+                                            <i class="fa-solid fa-robot"></i>
+                                        </div>
+                                        <div class="ml-3">
+                                            <h4 class="text-sm font-bold text-purple-800 mb-1">AI Phân tích Nguyên nhân Rủi ro:</h4>
+                                            <p id="ai-explanation-text" class="text-sm text-purple-900 leading-relaxed">Đang phân tích dữ liệu...</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Cột đôi biểu đồ -->
+                                <div class="grid grid-cols-2 gap-6 mb-8">
+                                    <!-- Radar Chart: So sánh nỗ lực -->
+                                    <div class="border border-slate-100 rounded-xl p-4 flex flex-col items-center bg-slate-50/50">
+                                        <h4 class="font-medium text-slate-700 mb-2 w-full text-center text-sm">Năng lực so với nhóm giỏi (Tuần mới nhất)</h4>
+                                        <div class="w-full max-w-[250px] aspect-square relative">
+                                            <canvas id="radarChart"></canvas>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Timeline Chart: Biến động xu hướng -->
+                                    <div class="border border-slate-100 rounded-xl p-4 bg-slate-50/50">
+                                        <h4 class="font-medium text-slate-700 mb-2 text-sm text-center">Hoạt động học tập / Điểm theo tuần</h4>
+                                        <div class="w-full h-[240px] relative">
+                                            <canvas id="timelineChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Bảng LOG -->
+                                <div>
+                                    <div class="flex justify-between items-end mb-3">
+                                        <h4 class="font-medium text-slate-700">Nhật ký hoạt động chi tiết</h4>
+                                        <button onclick="openInterventionModal()" class="text-sm bg-primary hover:bg-secondary text-white px-4 py-2 rounded-lg transition-colors shadow-sm">
+                                            <i class="fa-solid fa-comment-medical mr-1"></i> Ghi nhận can thiệp
+                                        </button>
+                                    </div>
+                                    <div class="border border-slate-200 rounded-xl overflow-hidden">
+                                        <div class="overflow-x-auto">
+                                            <table class="w-full text-sm text-center border-collapse text-nowrap">
+                                                <thead>
+                                                    <tr class="bg-slate-100 text-slate-600 font-medium">
+                                                        <th class="py-3 px-3">Tuần</th>
+                                                        <th class="py-3 px-3">Ngày online</th>
+                                                        <th class="py-3 px-3" title="Login Count">Login</th>
+                                                        <th class="py-3 px-3" title="Video Views">Xem Video</th>
+                                                        <th class="py-3 px-3" title="Document Reads">Đọc TL</th>
+                                                        <th class="py-3 px-3" title="Discussion">Thảo luận</th>
+                                                        <th class="py-3 px-3" title="Assignment Attempt">Làm bài</th>
+                                                        <th class="py-3 px-3" title="Hệ thống chấm tuần">Điểm</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="student-logs-tbody" class="divide-y divide-slate-100 bg-white">
+                                                    <!-- Dynamic JS -->
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. PHÁT HIỆN BẤT THƯỜNG -->
+                <div id="tab-anomaly-detection" class="tab-content hidden animate-fade-in">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6">
+                        <div class="flex justify-between items-start mb-6">
+                            <div>
+                                <h3 class="font-semibold text-slate-800 text-lg mb-1">Ma trận phân vùng Nỗ lực - Điểm số (Tuần mới nhất)</h3>
+                                <p class="text-slate-500 text-sm">Phát hiện sinh viên có dấu hiệu bất thường (Cờ 🚩): Nỗ lực cực thấp nhưng điểm số rất cao (Nguy cơ gian lận).</p>
+                            </div>
+                        </div>
+                        <div class="w-full h-[500px] relative">
+                            <canvas id="scatterChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. LỊCH SỬ CAN THIỆP -->
+                <div id="tab-intervention-history" class="tab-content hidden animate-fade-in">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                         <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                            <h3 class="font-semibold text-slate-800">
+                                Sổ theo dõi hành động can thiệp
+                            </h3>
+                            <button class="flex items-center space-x-2 text-sm text-slate-600 bg-white border border-slate-200 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors shadow-sm font-medium">
+                                <i class="fa-solid fa-file-csv text-green-600"></i>
+                                <span>Xuất CSV</span>
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 text-slate-500 text-sm">
+                                        <th class="py-4 px-6 font-medium">Ngày giờ</th>
+                                        <th class="py-4 px-6 font-medium">Sinh viên</th>
+                                        <th class="py-4 px-6 font-medium">Loại can thiệp</th>
+                                        <th class="py-4 px-6 font-medium w-1/3">Ghi chú</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="intervention-list" class="divide-y divide-slate-100 text-sm text-slate-700">
+                                    <!-- Dynamic rows inserted by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Intervention Modal Popup -->
+    <div id="intervention-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md scale-95 transition-transform duration-300 transform" id="intervention-modal-content">
+            <div class="flex justify-between items-center p-5 border-b border-slate-100">
+                <h3 class="font-semibold text-lg text-slate-800">Ghi nhận can thiệp</h3>
+                <button onclick="closeInterventionModal()" class="text-slate-400 hover:text-slate-600 focus:outline-none">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <form id="intervention-form" onsubmit="submitIntervention(event)">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Loại can thiệp</label>
+                        <select id="intervention-type" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 text-sm">
+                            <option value="Nhắc nhở qua Email">Nhắc nhở qua Email</option>
+                            <option value="Gọi điện thoại">Gọi điện thoại</option>
+                            <option value="Liên hệ Cố vấn học tập">Liên hệ Cố vấn học tập</option>
+                            <option value="Gặp mặt trực tiếp">Gặp mặt trực tiếp</option>
+                        </select>
+                    </div>
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-sm font-medium text-slate-700">Ghi chú chi tiết / Nội dung Email</label>
+                            <button type="button" onclick="draftEmailWithAI()" id="btn-draft-ai" class="text-xs bg-purple-100 text-purple-700 hover:bg-purple-200 px-2 py-1 rounded font-medium transition-colors flex items-center">
+                                <i class="fa-solid fa-wand-magic-sparkles mr-1 text-purple-600"></i> AI Soạn Mail
+                            </button>
+                        </div>
+                        <textarea id="intervention-note" required rows="5" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 text-sm custom-scrollbar leading-relaxed" placeholder="Nội dung đã trao đổi hoặc nhắc nhở..."></textarea>
+                    </div>
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="closeInterventionModal()" class="px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-sm font-medium transition-colors">Hủy</button>
+                        <button type="submit" class="px-4 py-2 bg-primary hover:bg-secondary text-white rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center">
+                            <i class="fa-solid fa-save mr-2"></i> Lưu can thiệp
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
