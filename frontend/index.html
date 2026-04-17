@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edu Analytics</title>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- TailwindCSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#4338ca',
+                        secondary: '#6366f1',
+                        dark: '#0f172a',
+                        card: '#ffffff',
+                        risk: '#ef4444',
+                        safe: '#10b981'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="bg-slate-50 text-slate-800 font-sans">
+    <script>
+        // Early auth check to prevent UI flashing
+        (function() {
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+            const hasAuth = token && token !== 'null' && token !== 'undefined' && 
+                          user && user !== 'null' && user !== 'undefined';
+                          
+            if (hasAuth) {
+                document.body.classList.add('is-logged-in');
+            } else {
+                document.body.classList.add('is-not-logged-in');
+            }
+        })();
+    </script>
+
+    <!-- Sellora-Style Auth Overlay (Exact Full Screen - No Scroll) -->
+    <div id="auth-overlay" class="fixed inset-0 z-[100] bg-white w-screen h-screen overflow-hidden">
+        <div class="w-full h-full flex">
+            <!-- Left Side: Form (White Background) -->
+            <div class="w-full md:w-1/2 p-6 md:p-12 lg:p-16 flex flex-col justify-between">
+                <div class="max-w-[420px] mx-auto w-full">
+                    <!-- Logo (Aligned with content) -->
+                    <div class="flex items-center space-x-2 text-primary mb-8 lg:mb-12">
+                        <i class="fa-solid fa-chart-line text-xl"></i>
+                        <span class="text-lg font-bold tracking-tight">EduAnalytics</span>
+                    </div>
+
+                    <div id="auth-form-content" class="w-full">
+                        <h1 id="auth-title" class="text-2xl lg:text-3xl font-bold text-slate-900 mb-1">Chào mừng
+                            quay lại</h1>
+                        <p id="auth-subtitle" class="text-sm text-slate-500 mb-6 lg:mb-8">Nhập email và mật khẩu
+                            để truy cập tài khoản của bạn.</p>
+
+                        <!-- Login Form (Compact spacing) -->
+                        <form id="login-form" onsubmit="handleAuthSubmit(event, 'login')" class="space-y-4">
+                            <div>
+                                <label
+                                    class="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">Email</label>
+                                <input type="email" id="login-email" required placeholder="ten@congty.com"
+                                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm">
+                            </div>
+                            <div>
+                                <label
+                                    class="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">Mật
+                                    khẩu</label>
+                                <div class="relative">
+                                    <input type="password" id="login-password" required placeholder="Nhập mật khẩu"
+                                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm">
+                                    <i
+                                        class="fa-solid fa-eye-slash absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer text-xs"></i>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs py-1">
+                                <label class="flex items-center text-slate-600">
+                                    <input type="checkbox" class="mr-2 rounded border-slate-300"> Ghi nhớ đăng
+                                    nhập
+                                </label>
+                                <a href="#" class="text-primary font-bold hover:underline">Quên mật khẩu?</a>
+                            </div>
+                            <button type="submit"
+                                class="w-full py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:bg-secondary transition-all text-sm">
+                                Đăng Nhập
+                            </button>
+                        </form>
+
+                        <!-- Register Form (Compact) -->
+                        <form id="register-form" onsubmit="handleAuthSubmit(event, 'register')"
+                            class="space-y-4 hidden">
+                            <div>
+                                <label
+                                    class="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">Họ
+                                    và Tên</label>
+                                <input type="text" id="register-name" required placeholder="Ví dụ: Nguyễn Văn A"
+                                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm">
+                            </div>
+                            <div>
+                                <label
+                                    class="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">Địa
+                                    chỉ Email</label>
+                                <input type="email" id="register-email" required placeholder="ten@congty.com"
+                                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm">
+                            </div>
+                            <div>
+                                <label
+                                    class="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">Mật
+                                    khẩu</label>
+                                <input type="password" id="register-password" required placeholder="Tạo mật khẩu"
+                                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm">
+                            </div>
+                            <button type="submit"
+                                class="w-full py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:bg-secondary transition-all text-sm">
+                                Tạo Tài Khoản
+                            </button>
+                        </form>
+
+                        <div class="mt-6 text-center text-xs">
+                            <span id="auth-toggle-text" class="text-slate-500">Chưa có tài khoản?</span>
+                            <button id="auth-toggle-btn" onclick="toggleAuthMode()"
+                                class="text-primary font-bold hover:underline ml-1">Đăng ký ngay.</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    class="text-[10px] text-slate-400 font-medium flex justify-between uppercase tracking-widest pt-4 border-t border-slate-100">
+                    <span>&copy; 2026 huypham.</span>
+                    <a href="#" class="hover:text-primary">Privacy Policy</a>
+                </div>
+            </div>
+
+            <!-- Right Side: Visual (Blue Background) -->
+            <div class="hidden md:flex w-1/2 bg-primary p-12 lg:p-24 flex-col justify-center text-white relative">
+                <div class="relative z-10">
+                    <h2 class="text-4xl font-bold leading-tight mb-4">Quản lý sinh viên và hiệu suất một cách dễ
+                        dàng.</h2>
+                    <p class="text-white/80 text-lg mb-12">Đăng nhập để truy cập trang quản trị và xem các phân
+                        tích chi tiết thời gian thực.</p>
+
+                    <!-- Decorative Dashboard Mockup Placeholder -->
+                    <div
+                        class="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-2xl rotate-[-2deg] scale-105 origin-left">
+                        <div class="flex items-center space-x-2 mb-4">
+                            <div class="w-3 h-3 rounded-full bg-red-400"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-400"></div>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="h-8 bg-white/20 rounded-lg w-3/4"></div>
+                            <div class="grid grid-cols-3 gap-3">
+                                <div class="h-20 bg-white/20 rounded-xl"></div>
+                                <div class="h-20 bg-white/20 rounded-xl"></div>
+                                <div class="h-20 bg-white/20 rounded-xl"></div>
+                            </div>
+                            <div class="h-32 bg-white/20 rounded-xl"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Background Pattern -->
+                <div class="absolute inset-0 opacity-10 pointer-events-none">
+                    <svg width="100%" height="100%">
+                        <rect width="100%" height="100%" fill="url(#grid)" />
+                    </svg>
+                    <defs>
+                        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" stroke-width="2" />
+                        </pattern>
+                    </defs>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-dashboard" class="flex h-screen overflow-hidden hidden">
+
+        <!-- Sidebar -->
+        <aside class="w-64 bg-dark text-white flex flex-col shadow-xl z-20 transition-all duration-300">
+            <div class="h-16 flex items-center justify-center border-b border-slate-700/50">
+                <i class="fa-solid fa-chart-pie text-secondary text-2xl mr-3"></i>
+                <h1 class="text-xl font-bold tracking-wide">EduAnalytics</h1>
+            </div>
+
+            <nav class="flex-1 py-6 px-3 space-y-2 overflow-y-auto custom-scrollbar">
+                <a href="#" onclick="switchTab('overview')" id="nav-overview"
+                    class="nav-item active flex items-center px-4 py-3 rounded-lg transition-colors group">
+                    <i class="fa-solid fa-table-columns w-6 group-hover:text-secondary transition-colors"></i>
+                    <span class="font-medium">Tổng quan</span>
+                </a>
+
+                <a href="#" onclick="switchTab('early-warning')" id="nav-early-warning"
+                    class="nav-item flex items-center px-4 py-3 rounded-lg opacity-70 hover:opacity-100 hover:bg-slate-800 transition-colors group">
+                    <i class="fa-solid fa-circle-exclamation w-6 group-hover:text-secondary transition-colors"></i>
+                    <span class="font-medium">Cảnh báo sớm</span>
+                </a>
+
+                <a href="#" onclick="switchTab('student-analysis')" id="nav-student-analysis"
+                    class="nav-item flex items-center px-4 py-3 rounded-lg opacity-70 hover:opacity-100 hover:bg-slate-800 transition-colors group">
+                    <i class="fa-solid fa-user-graduate w-6 group-hover:text-secondary transition-colors"></i>
+                    <span class="font-medium">Phân tích sinh viên</span>
+                </a>
+
+                <a href="#" onclick="switchTab('anomaly-detection')" id="nav-anomaly-detection"
+                    class="nav-item flex items-center px-4 py-3 rounded-lg opacity-70 hover:opacity-100 hover:bg-slate-800 transition-colors group">
+                    <i class="fa-solid fa-magnifying-glass-chart w-6 group-hover:text-secondary transition-colors"></i>
+                    <span class="font-medium">Phát hiện bất thường</span>
+                </a>
+
+                <a href="#" onclick="switchTab('intervention-history')" id="nav-intervention-history"
+                    class="nav-item flex items-center px-4 py-3 rounded-lg opacity-70 hover:opacity-100 hover:bg-slate-800 transition-colors group">
+                    <i class="fa-solid fa-clock-rotate-left w-6 group-hover:text-secondary transition-colors"></i>
+                    <span class="font-medium">Lịch sử can thiệp</span>
+                </a>
+
+                <a href="#" onclick="switchTab('settings')" id="nav-settings"
+                    class="nav-item flex items-center px-4 py-3 rounded-lg opacity-70 hover:opacity-100 hover:bg-slate-800 transition-colors group">
+                    <i class="fa-solid fa-gear w-6 group-hover:text-secondary transition-colors"></i>
+                    <span class="font-medium">Cài đặt</span>
+                </a>
+            </nav>
+
+            <!-- Sidebar footer removed as info moved to profile dropdown -->
+        </aside>
+
+        <!-- Main ContentWrapper -->
+        <main class="flex-1 flex flex-col relative overflow-hidden bg-slate-50/50">
+
+            <!-- Navbar -->
+            <header
+                class="h-16 bg-white/80 backdrop-blur-md shadow-sm flex items-center justify-between px-8 z-10 sticky top-0">
+                <h2 id="page-title" class="text-xl font-bold text-slate-800">Tổng quan lớp học</h2>
+<div class="flex items-center space-x-4">
+
+                    <div class="relative">
+                        <i
+                            class="fa-solid fa-bell text-slate-400 hover:text-slate-600 cursor-pointer text-lg transition-colors"></i>
+                        <span class="absolute -top-1 -right-1 flex h-3 w-3">
+                            <span
+                                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-risk opacity-75"></span>
+                            <span
+                                class="relative inline-flex rounded-full h-3 w-3 bg-risk text-[8px] text-white items-center justify-center">3</span>
+                        </span>
+                    </div>
+                    <div class="relative pl-4 border-l">
+                        <button id="profile-btn" onclick="toggleProfileMenu(event)"
+                            class="relative flex items-center focus:outline-none group">
+                            <div class="relative">
+                                <img id="user-nav-avatar"
+                                    src="https://ui-avatars.com/api/?name=User&background=6366f1&color=fff"
+                                    class="w-9 h-9 rounded-full border border-slate-200 group-hover:border-primary transition-all shadow-sm">
+                                <div
+                                    class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-white rounded-full border border-slate-200 flex items-center justify-center shadow-sm group-hover:border-primary group-hover:bg-primary group-hover:text-white transition-all">
+                                    <i class="fa-solid fa-chevron-down text-[7px] text-slate-400 group-hover:text-white"></i>
+                                </div>
+                            </div>
+                        </button>
+                        <div id="profile-dropdown"
+                            class="hidden absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[100] overflow-hidden animate-fade-in">
+                            <div class="p-5 border-b border-slate-50 bg-slate-50/50">
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tài khoản
+                                </p>
+                                <div class="flex items-center space-x-3">
+                                    <div id="dropdown-avatar-container">
+                                        <!-- Dynamic Avatar -->
+                                    </div>
+                                    <div class="overflow-hidden">
+                                        <p id="dropdown-user-name" class="text-sm font-bold text-slate-800 truncate">---
+                                        </p>
+                                        <p id="dropdown-user-email" class="text-xs text-slate-500 truncate">---</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-2">
+                                <a href="#"
+                                    class="flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-50 hover:text-primary transition-all text-sm group">
+                                    <div
+                                        class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all">
+                                        <i class="fa-solid fa-user-gear"></i>
+                                    </div>
+                                    <span class="font-medium">Thông tin cá nhân</span>
+                                </a>
+                                <div class="my-1 border-t border-slate-50"></div>
+                                <button onclick="handleLogout()"
+                                    class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-risk hover:bg-rose-50 transition-all text-sm group">
+                                    <div
+                                        class="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center group-hover:bg-risk group-hover:text-white transition-all">
+                                        <i class="fa-solid fa-right-from-bracket"></i>
+                                    </div>
+                                    <span class="font-bold">Đăng xuất</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Scrollable Content -->
+            <div class="flex-1 overflow-y-auto p-8 custom-scrollbar relative">
+
+                <!-- GLOBAL FILTERS -->
+                <div class="flex flex-col mb-6" id="global-filters">
+                    <div class="flex justify-between items-end">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-64">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">Môn học</label>
+                                <select id="filter-course" onchange="handleCourseChange()" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm text-slate-700">
+                                    <option value="">Tất cả môn học</option>
+                                </select>
+                            </div>
+                            <div class="w-64">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">Lớp học</label>
+                                <select id="filter-class" onchange="handleClassChange()" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm text-slate-700">
+                                    <option value="">Tất cả lớp học</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading Overlay -->
+                <div id="loading-overlay"
+                    class="absolute inset-0 bg-slate-50/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-3"></div>
+                    <p class="text-slate-500 font-medium">Đang tải dữ liệu...</p>
+                </div>
+
+                <!-- 1. TỔNG QUAN -->
+                <div id="tab-overview" class="tab-content block animate-fade-in">
+                    <!-- Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                        <div
+                            class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 card-hover flex flex-col justify-between">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500 mb-1">Tổng sinh viên</p>
+                                    <h3 class="text-3xl font-bold text-slate-800" id="stat-total">--</h3>
+                                </div>
+                                <div
+                                    class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
+                                    <i class="fa-solid fa-users"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div onclick="openRiskListModal('An toàn')"
+                            class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 card-hover flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500 mb-1">An toàn</p>
+                                    <h3 class="text-3xl font-bold text-safe" id="stat-safe">--</h3>
+                                </div>
+                                <div
+                                    class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
+                                    <i class="fa-solid fa-check-circle"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div onclick="openRiskListModal('Nguy cơ')"
+                            class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 card-hover flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500 mb-1">Nguy cơ cao</p>
+                                    <h3 class="text-3xl font-bold text-risk" id="stat-risk">--</h3>
+                                </div>
+                                <div
+                                    class="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-500 pt-1">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 card-hover flex flex-col justify-between relative overflow-hidden">
+                            <div class="flex justify-between items-start relative z-10">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500 mb-1">Tỷ lệ rủi ro</p>
+                                    <h3 class="text-3xl font-bold text-slate-800" id="stat-percent">--%</h3>
+                                </div>
+                                <div
+                                    class="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-500">
+                                    <i class="fa-solid fa-chart-line"></i>
+                                </div>
+                            </div>
+                            <!-- Trang trí vạch mờ -->
+                            <div class="absolute -right-4 -bottom-4 opacity-10 text-6xl">
+                                <i class="fa-solid fa-percent"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts row -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div
+                            class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 col-span-1 flex flex-col items-center justify-center">
+                            <h3 class="w-full text-left font-semibold text-slate-700 mb-4">Tỷ lệ An toàn vs Nguy
+                                cơ</h3>
+                            <div class="relative w-full max-w-[220px] aspect-square">
+                                <canvas id="pieChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div
+                            class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 col-span-1 lg:col-span-2">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-semibold text-slate-700">Điểm nỗ lực học tập trung bình</h3>
+                                <div class="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full">
+                                    <i class="fa-solid fa-circle text-primary text-[8px] mr-1"></i> (Thang 1-10)
+                                </div>
+                            </div>
+                            <div class="relative w-full h-[250px]">
+                                <canvas id="lineChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. CẢNH BÁO SỚM -->
+                <div id="tab-early-warning" class="tab-content hidden animate-fade-in">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-red-50/30">
+                            <h3 class="font-semibold text-risk flex items-center">
+                                <i class="fa-solid fa-triangle-exclamation mr-2"></i> Danh sách sinh viên cần
+                                chú ý
+                            </h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 text-slate-500 text-sm uppercase tracking-wider">
+                                        <th class="py-4 px-6 font-medium">Mã SV</th>
+                                        <th class="py-4 px-6 font-medium">Họ và Tên</th>
+                                        <th class="py-4 px-6 font-medium">Xác suất rủi ro</th>
+                                        <th class="py-4 px-6 font-medium">Chỉ số nỗ lực</th>
+                                        <th class="py-4 px-6 font-medium">Trạng thái</th>
+                                        <th class="py-4 px-6 font-medium">Hành động</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="warning-list" class="divide-y divide-slate-100">
+                                    <!-- Dynamic rows inserted by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. PHÂN TÍCH SINH VIÊN -->
+                <div id="tab-student-analysis" class="tab-content hidden animate-fade-in">
+                    <div class="flex gap-6 h-full">
+                        <!-- Danh sách bên trái -->
+                        <div
+                            class="w-1/3 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col max-h-[700px]">
+                            <div class="p-4 border-b border-slate-100 flex gap-2">
+                                <div class="relative flex-1">
+                                    <i
+                                        class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                    <input type="text" id="search-student" placeholder="Tìm sinh viên..."
+                                        class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm transition-all text-slate-700">
+                                </div>
+                                <select id="filter-risk-status" onchange="loadStudentList()"
+                                    class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 text-slate-700">
+                                    <option value="all">Tất cả</option>
+                                    <option value="Nguy cơ" class="text-risk font-bold">Nguy cơ</option>
+                                    <option value="An toàn" class="text-emerald-600 font-bold">An toàn</option>
+                                </select>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto custom-scrollbar p-2" id="full-student-list">
+                                <!-- Dynamic JS -->
+                            </div>
+                        </div>
+
+                        <!-- Panel Phải - Chi tiết -->
+                        <div class="w-2/3 bg-white rounded-2xl shadow-sm border border-slate-100 p-6 relative"
+                            id="student-detail-panel">
+                            <div class="absolute inset-0 flex flex-col items-center justify-center text-slate-400"
+                                id="empty-student-state">
+                                <div class="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center mb-4">
+                                    <i class="fa-regular fa-hand-pointer text-3xl"></i>
+                                </div>
+                                <p>Chọn một sinh viên từ danh sách để xem phân tích</p>
+                            </div>
+
+                            <div id="student-content" class="hidden h-full flex flex-col h-[700px] overflow-y-auto">
+                                <!-- Header Info -->
+                                <div class="flex justify-between items-start border-b border-slate-100 pb-4 mb-6">
+                                    <div>
+                                        <h2 class="text-2xl font-bold text-slate-800" id="detail-name">---</h2>
+                                        <p class="text-slate-500 mt-1" id="detail-id">---</p>
+                                    </div>
+                                    <div class="flex items-center space-x-3">
+                                        <button onclick="explainWithAI()" id="btn-explain-ai"
+                                            class="hidden text-sm bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white px-4 py-1.5 rounded-full transition-all shadow-md font-medium flex items-center">
+                                            <i class="fa-solid fa-wand-magic-sparkles mr-2 text-yellow-200"></i>
+                                            AI Giải thích
+                                        </button>
+                                        <span id="detail-badge"
+                                            class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-semibold border border-emerald-200">
+                                            An toàn
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- AI EXPLANATION BOX -->
+                                <div id="ai-explanation-box"
+                                    class="hidden mb-6 bg-purple-50 border border-purple-100 rounded-xl p-4">
+                                    <div class="flex items-start">
+                                        <div
+                                            class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 mt-0.5 shrink-0">
+                                            <i class="fa-solid fa-robot"></i>
+                                        </div>
+                                        <div class="ml-3">
+                                            <h4 class="text-sm font-bold text-purple-800 mb-1">AI Phân tích
+                                                Nguyên nhân Rủi ro:</h4>
+                                            <p id="ai-explanation-text" class="text-sm text-purple-900 leading-relaxed">
+                                                Đang phân tích
+                                                dữ liệu...</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Cột đôi biểu đồ -->
+                                <div class="grid grid-cols-2 gap-6 mb-8">
+                                    <!-- Radar Chart: So sánh nỗ lực -->
+                                    <div
+                                        class="border border-slate-100 rounded-xl p-4 flex flex-col items-center bg-slate-50/50">
+                                        <h4 class="font-medium text-slate-700 mb-2 w-full text-center text-sm">
+                                            Năng lực so với nhóm giỏi (Tuần mới nhất)</h4>
+                                        <div class="w-full max-w-[250px] aspect-square relative">
+                                            <canvas id="radarChart"></canvas>
+                                        </div>
+                                    </div>
+
+                                    <!-- Timeline Chart: Biến động xu hướng -->
+                                    <div class="border border-slate-100 rounded-xl p-4 bg-slate-50/50">
+                                        <h4 class="font-medium text-slate-700 mb-2 text-sm text-center">Hoạt
+                                            động học tập / Điểm theo tuần</h4>
+                                        <div class="w-full h-[240px] relative">
+                                            <canvas id="timelineChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Mini Stats Grid -->
+                                <div id="behavioral-summary-grid" class="grid grid-cols-4 gap-3 mb-6">
+                                    <div class="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-xl p-3.5 border border-indigo-100">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <div class="w-6 h-6 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                                                <i class="fa-solid fa-clock text-indigo-500 text-[10px]"></i>
+                                            </div>
+                                            <p class="text-[9px] font-bold text-indigo-500 uppercase tracking-wider">Học online</p>
+                                        </div>
+                                        <div class="flex items-baseline gap-1">
+                                            <span class="text-2xl font-bold text-indigo-700" id="stat-session-time">0</span>
+                                            <span class="text-[10px] text-indigo-400 font-medium">phút/tuần</span>
+                                        </div>
+                                    </div>
+                                    <div class="bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-xl p-3.5 border border-amber-100">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <div class="w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                                                <i class="fa-solid fa-right-to-bracket text-amber-500 text-[10px]"></i>
+                                            </div>
+                                            <p class="text-[9px] font-bold text-amber-500 uppercase tracking-wider">Truy cập gần nhất</p>
+                                        </div>
+                                        <div class="flex items-baseline gap-1">
+                                            <span class="text-2xl font-bold text-amber-700" id="stat-last-login">0</span>
+                                            <span class="text-[10px] text-amber-400 font-medium">ngày trước</span>
+                                        </div>
+                                    </div>
+                                    <div class="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-3.5 border border-blue-100">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <div class="w-6 h-6 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                                                <i class="fa-solid fa-pen-to-square text-blue-500 text-[10px]"></i>
+                                            </div>
+                                            <p class="text-[9px] font-bold text-blue-500 uppercase tracking-wider">Thời gian làm bài</p>
+                                        </div>
+                                        <div class="flex items-baseline gap-1">
+                                            <span class="text-2xl font-bold text-blue-700" id="stat-assignment-time">0</span>
+                                            <span class="text-[10px] text-blue-400 font-medium">phút</span>
+                                        </div>
+                                    </div>
+                                    <div class="bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-xl p-3.5 border border-emerald-100">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <div class="w-6 h-6 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                                                <i class="fa-solid fa-circle-check text-emerald-500 text-[10px]"></i>
+                                            </div>
+                                            <p class="text-[9px] font-bold text-emerald-500 uppercase tracking-wider">Nộp bài</p>
+                                        </div>
+                                        <div class="flex items-baseline gap-1">
+                                            <span class="text-2xl font-bold text-emerald-700" id="stat-ontime-margin">0</span>
+                                            <span class="text-[10px] font-medium" id="stat-ontime-label">ngày sớm</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Bảng LOG -->
+                                <div>
+                                    <div class="flex justify-between items-center mb-3">
+                                        <div>
+                                            <h4 class="font-semibold text-slate-700">Nhật ký hoạt động theo tuần</h4>
+                                            <p class="text-[10px] text-slate-400 mt-0.5">
+                                                <span class="inline-flex items-center gap-1 mr-3"><i class="fa-solid fa-play text-purple-400 text-[8px]"></i>Video</span>
+                                                <span class="inline-flex items-center gap-1 mr-3"><i class="fa-solid fa-file-lines text-blue-400 text-[8px]"></i>Tài liệu</span>
+                                                <span class="inline-flex items-center gap-1 mr-3"><i class="fa-solid fa-comments text-teal-400 text-[8px]"></i>Thảo luận</span>
+                                            </p>
+                                        </div>
+                                        <button onclick="openInterventionModal()"
+                                            class="text-sm bg-primary hover:bg-secondary text-white px-4 py-2 rounded-lg transition-colors shadow-sm">
+                                            <i class="fa-solid fa-comment-medical mr-1"></i> Can thiệp
+                                        </button>
+                                    </div>
+                                    <div class="border border-slate-200 rounded-xl overflow-hidden">
+                                        <div class="overflow-x-auto">
+                                            <table class="w-full text-xs border-collapse text-nowrap">
+                                                <thead>
+                                                    <tr class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                                                        <th class="py-2.5 px-3 text-left">Tuần</th>
+                                                        <th class="py-2.5 px-3 text-left" title="Video / Tài liệu / Thảo luận">Học liệu</th>
+                                                        <th class="py-2.5 px-3 text-left">Chuyên cần</th>
+                                                        <th class="py-2.5 px-3 text-center">Đăng nhập</th>
+                                                        <th class="py-2.5 px-3 text-center">Học online</th>
+                                                        <th class="py-2.5 px-3 text-center">Làm bài</th>
+                                                        <th class="py-2.5 px-3 text-center">Nộp sớm/trễ</th>
+                                                        <th class="py-2.5 px-3 text-center">Truy cập</th>
+                                                        <th class="py-2.5 px-3 text-center">Điểm</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="student-logs-tbody"
+                                                    class="bg-white">
+                                                    <!-- Dynamic JS -->
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- 4. PHÁT HIỆN BẤT THƯỜNG -->
+                <div id="tab-anomaly-detection" class="tab-content hidden animate-fade-in">
+                    <!-- Anomaly KPI Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                        <div
+                            class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 card-hover flex flex-col justify-between">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500 mb-1">Tổng bất thường</p>
+                                    <h3 class="text-3xl font-bold text-slate-800" id="anomaly-stat-total">0</h3>
+                                </div>
+                                <div
+                                    class="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-500">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div
+                            class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 card-hover flex flex-col justify-between">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500 mb-1">Nghi vấn gian lận</p>
+                                    <h3 class="text-3xl font-bold text-risk" id="anomaly-stat-cheating">0</h3>
+                                </div>
+                                <div
+                                    class="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-500">
+                                    <i class="fa-solid fa-user-secret"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div
+                            class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 card-hover flex flex-col justify-between">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500 mb-1">Nguy cơ kiệt sức</p>
+                                    <h3 class="text-3xl font-bold text-orange-500" id="anomaly-stat-burnout">0
+                                    </h3>
+                                </div>
+                                <div
+                                    class="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-500">
+                                    <i class="fa-solid fa-fire"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div
+                            class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 card-hover flex flex-col justify-between">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500 mb-1">Bất thường khác</p>
+                                    <h3 class="text-3xl font-bold text-blue-500" id="anomaly-stat-others">0</h3>
+                                </div>
+                                <div
+                                    class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
+                                    <i class="fa-solid fa-bolt"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dual Layout: Chart and Table -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <!-- Scatter Plot Card -->
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                            <div class="flex justify-between items-start mb-6">
+                                <div>
+                                    <h3 class="font-semibold text-slate-800 text-lg mb-1">Ma trận phân vùng Nỗ
+                                        lực - Điểm số</h3>
+                                    <p class="text-slate-500 text-sm">Trục ngang: Nỗ lực hệ thống | Trục dọc:
+                                        Điểm số</p>
+                                </div>
+                            </div>
+                            <div class="w-full h-[400px] relative">
+                                <canvas id="scatterChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Anomaly List Card -->
+                        <div
+                            class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+                            <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                                <h3 class="font-semibold text-slate-800 text-lg">Danh sách sinh viên bị gắn cờ
+                                </h3>
+                                <span class="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded-full font-bold">Tuần
+                                    mới nhất</span>
+                            </div>
+                            <div class="flex-1 overflow-y-auto custom-scrollbar" style="max-height: 400px;">
+                                <table class="w-full text-left border-collapse">
+                                    <thead class="sticky top-0 bg-white/95 backdrop-blur shadow-sm z-10">
+                                        <tr class="text-slate-500 text-[10px] uppercase tracking-wider">
+                                            <th class="py-3 px-4 font-bold">Sinh viên</th>
+                                            <th class="py-3 px-4 font-bold">Loại bất thường</th>
+                                            <th class="py-3 px-4 font-bold text-center">Mức độ</th>
+                                            <th class="py-3 px-4 font-bold text-right">Thao tác</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="anomaly-list-tbody" class="divide-y divide-slate-100 text-sm">
+                                        <!-- Dynamic rows will be inserted here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. LỊCH SỬ CAN THIỆP -->
+                <div id="tab-intervention-history" class="tab-content hidden animate-fade-in">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                            <h3 class="font-semibold text-slate-800">
+                                Sổ theo dõi hành động can thiệp
+                            </h3>
+                            <button
+                                class="flex items-center space-x-2 text-sm text-slate-600 bg-white border border-slate-200 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors shadow-sm font-medium">
+                                <i class="fa-solid fa-file-csv text-green-600"></i>
+                                <span>Xuất CSV</span>
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 text-slate-500 text-sm">
+                                        <th class="py-4 px-6 font-medium">Ngày giờ</th>
+                                        <th class="py-4 px-6 font-medium">Sinh viên</th>
+                                        <th class="py-4 px-6 font-medium">Môn học</th>
+                                        <th class="py-4 px-6 font-medium">Loại can thiệp</th>
+                                        <th class="py-4 px-6 font-medium w-1/4">Ghi chú</th>
+                                        <th class="py-4 px-6 font-medium">Người thực hiện</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="intervention-list" class="divide-y divide-slate-100 text-sm text-slate-700">
+                                    <!-- Dynamic rows inserted by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. CÀI ĐẶT -->
+                <div id="tab-settings" class="tab-content hidden animate-fade-in relative z-20">
+                    <div class="max-w-4xl mx-auto space-y-6 pb-20">
+                        <!-- Gemini API Section -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                            <div class="p-6 border-b border-slate-100">
+                                <h3 class="font-semibold text-slate-800 flex items-center">
+                                    <i class="fa-solid fa-wand-magic-sparkles text-purple-600 mr-2"></i>
+                                    Cấu hình Google Gemini AI
+                                </h3>
+                                <p class="text-xs text-slate-500 mt-1">Dùng để phân tích hành vi và soạn thảo email can thiệp tự động.</p>
+                            </div>
+                            <div class="p-6">
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1">Gemini API Key</label>
+                                        <div class="relative">
+                                            <input type="password" id="set-gemini-key"
+                                                class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 text-sm"
+                                                placeholder="Dán API Key của bạn vào đây...">
+                                            <i class="fa-solid fa-key absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                        </div>
+                                        <p class="text-[10px] text-slate-400 mt-2">API Key được lưu an toàn trong trình duyệt của bạn (localStorage).</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Email SMTP Section -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                            <div class="p-6 border-b border-slate-100">
+                                <h3 class="font-semibold text-slate-800 flex items-center">
+                                    <i class="fa-solid fa-envelope-circle-check text-indigo-600 mr-2"></i>
+                                    Cấu hình Email (SMTP)
+                                </h3>
+                                <p class="text-xs text-slate-500 mt-1">Dùng để gửi email can thiệp cho sinh viên trực tiếp từ hệ thống.</p>
+                            </div>
+                            <div class="p-6">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="md:col-span-2">
+                                        <label class="block text-sm font-medium text-slate-700 mb-1">Email người gửi</label>
+                                        <input type="email" id="set-email-sender"
+                                            class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 text-sm"
+                                            placeholder="example@gmail.com">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block text-sm font-medium text-slate-700 mb-1">Mật khẩu ứng dụng (App Password)</label>
+                                        <input type="password" id="set-email-pass"
+                                            class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 text-sm"
+                                            placeholder="•••• •••• •••• ••••">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1">SMTP Host</label>
+                                        <input type="text" id="set-email-host"
+                                            class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 text-sm"
+                                            value="smtp.gmail.com">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1">Cổng (Port)</label>
+                                        <input type="text" id="set-email-port"
+                                            class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 text-sm"
+                                            value="587">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Import Data Section -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-6">
+                            <div class="p-6 border-b border-slate-100">
+                                <h3 class="font-semibold text-slate-800 flex items-center">
+                                    <i class="fa-solid fa-file-csv text-green-600 mr-2"></i>
+                                    Nhập dữ liệu (Upload CSV)
+                                </h3>
+                                <p class="text-xs text-slate-500 mt-1">Đẩy dữ liệu học tập vào cơ sở dữ liệu MongoDB.</p>
+                            </div>
+                            <div class="p-6">
+                                <form id="form-upload-csv" onsubmit="uploadCSVFile(event)" class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1">Chọn file CSV</label>
+                                        <div class="flex items-center space-x-3">
+                                            <input type="file" id="csv-file-input" accept=".csv" required
+                                                class="flex-1 text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 transition-all cursor-pointer border border-slate-200 rounded-xl p-2 bg-slate-50">
+                                            <button type="button" onclick="downloadTemplate()"
+                                                class="px-4 py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl font-medium hover:bg-emerald-100 transition-all text-sm flex items-center shrink-0">
+                                                <i class="fa-solid fa-file-export mr-2"></i> File mẫu
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <button type="submit" id="btn-upload-csv"
+                                        class="px-5 py-2.5 bg-primary text-white rounded-xl font-medium shadow-sm hover:bg-secondary transition-all text-sm flex items-center">
+                                        <i class="fa-solid fa-cloud-arrow-up mr-2"></i> Tải lên hệ thống
+                                    </button>
+                                </form>
+
+                            </div>
+                        </div>
+
+                        <!-- ML Model Management Section -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                            <div class="p-6 border-b border-slate-100">
+                                <h3 class="font-semibold text-slate-800 flex items-center">
+                                    <i class="fa-solid fa-microchip text-rose-600 mr-2"></i>
+                                    Cấu hình Mô hình Máy học
+                                </h3>
+                                <p class="text-xs text-slate-500 mt-1">Chọn mô hình dự báo và theo dõi hiệu năng của hệ thống.</p>
+                            </div>
+                            <div class="p-6">
+                                <div class="mb-6">
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Mô hình hoạt động (Active Model)</label>
+                                    <select id="set-active-model" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 text-sm cursor-not-allowed opacity-70" disabled>
+                                        <option value="Logistic Regression">Logistic Regression</option>
+                                    </select>
+                                    <p class="text-xs text-amber-600 mt-2 flex items-center">
+                                        <i class="fa-solid fa-circle-info mr-1.5"></i>
+                                        Hiện tại hệ thống chỉ tích hợp 1 mô hình. Các mô hình khác sẽ được bổ sung trong phiên bản tiếp theo.
+                                    </p>
+                                </div>
+                                
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-sm">
+                                        <thead>
+                                            <tr class="text-slate-500 border-b border-slate-50">
+                                                <th class="pb-3 font-medium">Mô hình</th>
+                                                <th class="pb-3 font-medium">Accuracy</th>
+                                                <th class="pb-3 font-medium">F1-Score</th>
+                                                <th class="pb-3 font-medium">Ngưỡng</th>
+                                                <th class="pb-3 font-medium hidden md:table-cell">Features</th>
+                                                <th class="pb-3 font-medium hidden md:table-cell">Mô tả</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="model-metrics-list">
+                                            <!-- Metrics loading via JS -->
+                                            <tr class="animate-pulse">
+                                                <td colspan="6" class="py-4 text-center text-slate-400">Đang tải thông số...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Save Button Area -->
+                        <div class="flex items-center justify-between p-4 bg-indigo-50 border border-indigo-100 rounded-2xl">
+                            <div class="flex items-center text-indigo-700 text-sm font-medium">
+                                <i class="fa-solid fa-circle-info mr-2"></i>
+                                Nhấn lưu để áp dụng các thay đổi.
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <span id="save-status" class="text-xs text-emerald-600 font-bold opacity-0 transition-opacity duration-300 italic">
+                                    <i class="fa-solid fa-check"></i> Đã lưu thành công!
+                                </span>
+                                <button onclick="saveSettings()"
+                                    class="px-6 py-2.5 bg-primary hover:bg-secondary text-white rounded-xl text-sm font-bold transition-all shadow-md flex items-center">
+                                    <i class="fa-solid fa-floppy-disk mr-2"></i> Lưu cấu hình
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Intervention Modal Popup -->
+    <div id="intervention-modal"
+        class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md scale-95 transition-transform duration-300 transform"
+            id="intervention-modal-content">
+            <div class="flex justify-between items-center p-5 border-b border-slate-100">
+                <h3 class="font-semibold text-lg text-slate-800">Ghi nhận can thiệp</h3>
+                <button onclick="closeInterventionModal()"
+                    class="text-slate-400 hover:text-slate-600 focus:outline-none">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <form id="intervention-form" onsubmit="submitIntervention(event)">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Loại can thiệp</label>
+                        <select id="intervention-type" required
+                            class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 text-sm">
+                            <option value="Nhắc nhở qua Email">Nhắc nhở qua Email</option>
+                            <option value="Gọi điện thoại">Gọi điện thoại</option>
+                            <option value="Liên hệ Cố vấn học tập">Liên hệ Cố vấn học tập</option>
+                            <option value="Gặp mặt trực tiếp">Gặp mặt trực tiếp</option>
+                        </select>
+                    </div>
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-sm font-medium text-slate-700">Ghi chú chi tiết / Nội dung
+                                Email</label>
+                            <button type="button" onclick="draftEmailWithAI()" id="btn-draft-ai"
+                                class="text-xs bg-purple-100 text-purple-700 hover:bg-purple-200 px-2 py-1 rounded font-medium transition-colors flex items-center">
+                                <i class="fa-solid fa-wand-magic-sparkles mr-1 text-purple-600"></i> AI Soạn
+                                Mail
+                            </button>
+                        </div>
+                        <textarea id="intervention-note" required rows="5"
+                            class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 text-sm custom-scrollbar leading-relaxed"
+                            placeholder="Nội dung đã trao đổi hoặc nhắc nhở..."></textarea>
+                    </div>
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="closeInterventionModal()"
+                            class="px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-sm font-medium transition-colors">Hủy</button>
+                        <button type="submit"
+                            class="px-4 py-2 bg-primary hover:bg-secondary text-white rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center">
+                            <i class="fa-solid fa-save mr-2"></i> Lưu can thiệp
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Risk List Modal -->
+    <div id="risk-list-modal"
+        class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] flex flex-col scale-95 transition-transform duration-300 transform"
+            id="risk-list-modal-content">
+            <div class="flex justify-between items-center p-5 border-b border-slate-100">
+                <h3 class="font-semibold text-lg text-slate-800" id="risk-list-modal-title">Danh sách sinh viên</h3>
+                <button onclick="closeRiskListModal()"
+                    class="text-slate-400 hover:text-slate-600 focus:outline-none">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto custom-scrollbar flex-1">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 text-sm uppercase tracking-wider">
+                                <th class="py-3 px-4 font-medium">Mã SV</th>
+                                <th class="py-3 px-4 font-medium">Họ và Tên</th>
+                                <th class="py-3 px-4 font-medium">Lớp</th>
+                                <th class="py-3 px-4 font-medium">Xác suất rủi ro</th>
+                                <th class="py-3 px-4 font-medium">Chỉ số nỗ lực</th>
+                                <th class="py-3 px-4"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="risk-list-modal-tbody" class="divide-y divide-slate-100">
+                            <!-- JS Dynamic -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="risk-list-loading" class="hidden py-10 text-center text-slate-500">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-3"></div>
+                    Đang tải danh sách...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JS Modules -->
+    <script src="js/api/apiClient.js"></script>
+    <script src="js/components/auth.js"></script>
+    <script src="js/components/dashboard.js"></script>
+    <script src="js/components/earlyWarning.js"></script>
+    <script src="js/components/studentAnalysis.js"></script>
+    <script src="js/components/anomalyDetection.js"></script>
+    <script src="js/components/interventions.js"></script>
+    <script src="js/components/settings.js"></script>
+    <script src="js/components/aiIntegration.js"></script>
+    <script src="js/main.js"></script>
+</body>
+
+</html>

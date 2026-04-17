@@ -12,6 +12,10 @@ try:
     student_logs = db["student_logs"]
     predictions = db["predictions"]
     interventions = db["interventions"]
+    users = db["users"]
+    
+    # Ensure email is unique
+    users.create_index("email", unique=True)
     
     # Kiểm tra kết nối
     client.admin.command('ping')

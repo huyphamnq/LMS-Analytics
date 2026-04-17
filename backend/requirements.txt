@@ -6,3 +6,10 @@ lightgbm
 joblib
 pandas
 pydantic
+google-generativeai
+dnspython
+passlib[bcrypt]
+bcrypt==3.2.0
+python-jose[cryptography]
+email-validator
+python-multipart
