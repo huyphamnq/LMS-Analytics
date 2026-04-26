@@ -1,28 +1,84 @@
 async function loadSummary() {
-    
+
     const course = document.getElementById('filter-course')?.value || '';
     const className = document.getElementById('filter-class')?.value || '';
     const query = new URLSearchParams();
     if (course) query.append('course', course);
     if (className) query.append('class_name', className);
-    
+
     const res = await apiFetch(`/dashboard/summary?${query.toString()}`);
     if (!res) return;
     const data = await res.json();
-    
+
     document.getElementById('stat-total').innerText = data.total_students;
     document.getElementById('stat-safe').innerText = data.safe_students;
     document.getElementById('stat-risk').innerText = data.risk_students;
     document.getElementById('stat-percent').innerText = `${data.risk_percentage}%`;
-    
+
     renderPieChart(data.safe_students, data.risk_students);
-    await loadTrendChart();
+    await loadTopRiskStudents();
+}
+
+async function loadTopRiskStudents() {
+    const listContainer = document.getElementById('top-risk-students-list');
+    if (!listContainer) return;
+
+    const queryString = getFilterQueryString();
+    const res = await apiFetch(`/early-warning${queryString}`);
+    if (!res) return;
+
+    let students = await res.json();
+    // Sort by risk probability descending
+    students.sort((a, b) => b.risk_probability - a.risk_probability);
+    // Take top 5
+    students = students.slice(0, 5);
+
+    if (students.length === 0) {
+        listContainer.innerHTML = '<tr><td colspan="4" class="py-10 text-center text-slate-400 text-sm">Chưa có sinh viên nguy cơ nào được ghi nhận.</td></tr>';
+        return;
+    }
+
+    listContainer.innerHTML = '';
+    students.forEach(student => {
+        const prob = Math.round(student.risk_probability * 100);
+        let probClass = 'text-rose-600 bg-rose-50';
+        if (prob < 70) probClass = 'text-amber-600 bg-amber-50';
+
+        const tr = document.createElement('tr');
+        tr.className = 'group hover:bg-slate-50 transition-all cursor-pointer';
+        tr.innerHTML = `
+            <td class="py-3 px-2">
+                <div class="flex items-center">
+                    <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(student.student_name)}&background=random" 
+                         class="w-8 h-8 rounded-full mr-3 border border-slate-200">
+                    <div>
+                        <p class="text-sm font-bold text-slate-700">${student.student_name}</p>
+                        <p class="text-[10px] text-slate-400">ID: ${student.student_id}</p>
+                    </div>
+                </div>
+            </td>
+            <td class="py-3 px-2">
+                <p class="text-[11px] font-semibold text-slate-600">${student.course_name}</p>
+                <p class="text-[10px] text-slate-400">${student.class_name}</p>
+            </td>
+            <td class="py-3 px-2 text-center">
+                <span class="px-2 py-1 rounded-lg font-bold text-xs ${probClass}">${prob}%</span>
+            </td>
+            <td class="py-3 px-2 text-right">
+                <button onclick="viewStudentDetail('${student.student_id}', '${student.course_name}')" 
+                    class="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                </button>
+            </td>
+        `;
+        listContainer.appendChild(tr);
+    });
 }
 
 function renderPieChart(safe, risk) {
     const ctx = document.getElementById('pieChart').getContext('2d');
     if (window.chartInstances.pie) window.chartInstances.pie.destroy();
-    
+
     window.chartInstances.pie = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -41,7 +97,7 @@ function renderPieChart(safe, risk) {
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: { usePointStyle: true, padding: 20, font: {family: 'Inter'} }
+                    labels: { usePointStyle: true, padding: 20, font: { family: 'Inter' } }
                 }
             }
         }
@@ -57,15 +113,15 @@ async function loadTrendChart() {
 
     const res = await apiFetch(`/dashboard/trend?${query.toString()}`);
     if (!res) return;
-    
+
     const data = await res.json();
     const weeks = data.weeks;
     const riskTrend = data.trend;
 
-    
+
     const ctx = document.getElementById('lineChart').getContext('2d');
     if (window.chartInstances.line) window.chartInstances.line.destroy();
-    
+
     window.chartInstances.line = new Chart(ctx, {
         type: 'line',
         data: {
@@ -96,7 +152,7 @@ async function loadTrendChart() {
                     beginAtZero: true,
                     max: 10,
                     grid: { borderDash: [5, 5], color: '#f1f5f9' },
-                    ticks: { callback: function(value) { return value + " đ" } }
+                    ticks: { callback: function (value) { return value + " đ" } }
                 },
                 x: {
                     grid: { display: false }
@@ -109,10 +165,10 @@ async function loadTrendChart() {
 function closeRiskListModal() {
     const modal = document.getElementById('risk-list-modal');
     const content = document.getElementById('risk-list-modal-content');
-    
+
     modal.classList.remove('opacity-100', 'pointer-events-auto');
     modal.classList.add('opacity-0', 'pointer-events-none');
-    
+
     content.classList.remove('scale-100');
     content.classList.add('scale-95');
 }
@@ -123,35 +179,35 @@ async function openRiskListModal(label) {
     const title = document.getElementById('risk-list-modal-title');
     const tbody = document.getElementById('risk-list-modal-tbody');
     const loading = document.getElementById('risk-list-loading');
-    
+
     title.innerText = `Danh sách sinh viên (${label})`;
     tbody.innerHTML = '';
-    
+
     modal.classList.remove('opacity-0', 'pointer-events-none');
     modal.classList.add('opacity-100', 'pointer-events-auto');
-    
+
     content.classList.remove('scale-95');
     content.classList.add('scale-100');
-    
+
     loading.classList.remove('hidden');
-    
+
     const course = document.getElementById('filter-course')?.value || '';
     const className = document.getElementById('filter-class')?.value || '';
     const query = new URLSearchParams({ risk_label: label });
     if (course) query.append('course', course);
     if (className) query.append('class_name', className);
-    
+
     const res = await apiFetch(`/dashboard/students_by_risk?${query.toString()}`);
     loading.classList.add('hidden');
-    
+
     if (!res) return;
     const students = await res.json();
-    
+
     if (students.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-500">Không có sinh viên nào trong nhóm này.</td></tr>`;
         return;
     }
-    
+
     students.forEach(student => {
         let probBadge = '';
         if (student.risk_probability < 0.5) {
@@ -161,7 +217,7 @@ async function openRiskListModal(label) {
         } else {
             probBadge = `<span class="bg-rose-100 text-rose-700 font-semibold px-2 py-1 rounded-md text-xs">${Math.round(student.risk_probability * 100)}%</span>`;
         }
-        
+
         let effortBadge = '';
         // effort_score thang 1-10 (theo calculate_effort_score trong ml_service.py)
         if (student.effort_score >= 7) {

@@ -37,10 +37,10 @@ async function saveSettings() {
             if (typeof initDashboard === 'function') initDashboard();
         } else if (response) {
             const data = await response.json();
-            alert("Lỗi khi lưu cài đặt: " + (data.detail || "Không xác định"));
+            UIHelpers.showNotification("Lỗi khi lưu cài đặt: " + (data.detail || "Không xác định"), 'error');
         }
     } catch (error) {
-        alert("Không thể kết nối đến máy chủ để lưu cài đặt");
+        UIHelpers.showNotification("Không thể kết nối đến máy chủ để lưu cài đặt", 'error');
     }
 }
 

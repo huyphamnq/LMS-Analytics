@@ -150,6 +150,10 @@ canvas {
     box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
 }
 
+/* ================================================= */
+/* MODEL MANAGEMENT STYLES */
+/* ================================================= */
+
 .auth-card button.bg-primary:hover {
     background: #4338ca;
     transform: translateY(-1px);

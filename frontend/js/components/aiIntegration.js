@@ -7,11 +7,20 @@ function getApiKey() {
     }
 
     if (!key) {
-        alert("Vui lòng cấu hình Gemini API Key trong phần Cài đặt trước khi dùng tính năng AI.");
+        UIHelpers.showNotification("Vui lòng cấu hình Gemini API Key trong phần Cài đặt trước khi dùng tính năng AI.", "warning");
         if (typeof switchTab === 'function') switchTab('settings');
         return null;
     }
     return key;
+}
+
+// Hàm đơn giản để parse Markdown (in đậm, xuống dòng) sang HTML
+function parseMarkdownToHTML(text) {
+    if (!text) return "";
+    let html = text.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-gray-800">$1</strong>'); // In đậm
+    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>'); // In nghiêng
+    html = html.replace(/\n/g, '<br>'); // Xuống dòng
+    return html;
 }
 
 async function explainWithAI() {
@@ -26,15 +35,17 @@ async function explainWithAI() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang phân tích...';
     
     box.classList.remove('hidden');
-    textEl.innerText = 'Đang phân tích dữ liệu...';
+    textEl.innerHTML = 'Đang phân tích dữ liệu...';
     
     const payload = {
         api_key: apiKey,
         student_data: {
             name: window.currentViewedStudent.full_name,
             course: window.currentViewedStudent.course_name,
+            subject_id: window.currentViewedStudent.subject_id,
             class: window.currentViewedStudent.class_name,
-            logs: window.currentViewedStudent.weekly_data.slice(-4) 
+            logs: window.currentViewedStudent.weekly_data.slice(-4),
+            prediction: window.currentLatestPrediction || null
         }
     };
     
@@ -46,12 +57,12 @@ async function explainWithAI() {
         
         const result = await res.json();
         if (res && res.ok) {
-            textEl.innerText = result.explanation;
+            textEl.innerHTML = parseMarkdownToHTML(result.explanation);
         } else {
-            textEl.innerText = "Lỗi khi gọi AI: " + (result.detail || "Không xác định");
+            textEl.innerHTML = "Lỗi khi gọi AI: " + (result.detail || "Không xác định");
         }
     } catch (e) {
-        textEl.innerText = "Lỗi mạng hoặc server.";
+        textEl.innerHTML = "Lỗi mạng hoặc server.";
         console.error(e);
     } finally {
         btn.disabled = false;
@@ -97,10 +108,10 @@ async function draftEmailWithAI() {
         if (res && res.ok) {
             noteEl.value = result.email_draft;
         } else {
-            alert("Lỗi khi gọi AI: " + (result.detail || "Không xác định"));
+            UIHelpers.showNotification("Lỗi khi gọi AI: " + (result.detail || "Không xác định"), "error");
         }
     } catch (e) {
-        alert("Lỗi mạng hoặc server.");
+        UIHelpers.showNotification("Lỗi mạng hoặc server.", "error");
         console.error(e);
     } finally {
         btn.disabled = false;

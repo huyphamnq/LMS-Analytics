@@ -1,6 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 from routes import api, auth, settings
+from config import CORS_ORIGINS, API_HOST, API_PORT, API_RELOAD
+from middleware import error_handler_middleware, validation_error_handler, global_exception_handler
 
 app = FastAPI(
     title="Learning Analytics Dashboard API",
@@ -8,37 +11,28 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Cấu hình CORS
-origins = [
-    "http://127.0.0.1:5500",
-    "http://localhost:5500",
-    "http://127.0.0.1:8000",
-    "http://localhost:8000",
-]
-
+# Cấu hình CORS từ environment variables
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
-@app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
-    import traceback
-    from fastapi.responses import JSONResponse
-    print(f"Global error: {exc}")
-    traceback.print_exc()
-    return JSONResponse(
-        status_code=500,
-        content={"detail": str(exc)}
-    )
+# Error handlers
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    return await validation_error_handler(request, exc)
 
-# Đăng ký các routes
-app.include_router(api.router)
-app.include_router(auth.router)
-app.include_router(settings.router)
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request, exc):
+    return await global_exception_handler(request, exc)
+
+# Đăng ký các routes với versioning (v1)
+app.include_router(api.router, prefix="/v1")
+app.include_router(auth.router, prefix="/v1")
+app.include_router(settings.router, prefix="/v1")
 
 @app.get("/")
 def read_root():
@@ -46,4 +40,4 @@ def read_root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app:app", host=API_HOST, port=API_PORT, reload=API_RELOAD)

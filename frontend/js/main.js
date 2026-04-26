@@ -100,7 +100,7 @@ async function reloadCurrentTab() {
             if (typeof loadStudentList === 'function') await loadStudentList();
         } else if (tabId === 'anomaly-detection') {
             if (typeof loadIntegrityData === 'function') await loadIntegrityData();
-        } else if (tabId === 'interventions') {
+        } else if (tabId === 'intervention-history') {
             if (typeof loadInterventions === 'function') await loadInterventions();
         }
     } finally {
@@ -121,7 +121,8 @@ async function initDashboard() {
     }
 }
 
-function switchTab(tabId) {
+function switchTab(tabId, event) {
+    if (event) event.preventDefault();
     // Hide all
     document.querySelectorAll('.tab-content').forEach(el => {
         el.classList.add('hidden');
@@ -146,10 +147,9 @@ function switchTab(tabId) {
     // Toggle filter visibility
     const filterContainer = document.getElementById('global-filters');
     if (filterContainer) {
-        if (tabId === 'settings' || tabId === 'early-warning') {
-            // Early warning already shows students by risk logic, maybe filter applies but usually it's list of risky
-            // For now let's keep it visible for early warning, but hide for settings
-            if (tabId === 'settings') {
+        if (tabId === 'settings' || tabId === 'early-warning' || tabId === 'model-management' || tabId === 'import-data') {
+            // Hide filters for settings, model management, and import data
+            if (tabId === 'settings' || tabId === 'model-management' || tabId === 'import-data') {
                 filterContainer.classList.add('hidden');
             } else {
                 filterContainer.classList.remove('hidden');
@@ -158,10 +158,24 @@ function switchTab(tabId) {
             filterContainer.classList.remove('hidden');
         }
     }
+    
+    // Initialize specific tab components
+    if (tabId === 'import-data') {
+        if (typeof initImportData === 'function') {
+            initImportData();
+        }
+    }
 
-    // Refresh data if needed
+    // Render component-specific content
     if(tabId === 'settings' && typeof loadModelMetrics === 'function') {
         loadModelMetrics();
+    } else if(tabId === 'model-management' && typeof ModelManagement !== 'undefined') {
+        // Render model management component into the tab container
+        const tabContainer = document.getElementById('tab-model-management');
+        if (tabContainer) {
+            // Render component (it will find the container itself)
+            ModelManagement.render();
+        }
     } else {
         reloadCurrentTab();
     }
@@ -185,97 +199,12 @@ window.downloadTemplate = async function() {
             window.URL.revokeObjectURL(url);
             a.remove();
         } else {
-            alert("Không thể tải file mẫu. Vui lòng thử lại sau.");
+            UIHelpers.showNotification("Không thể tải file mẫu. Vui lòng thử lại sau.", "error");
         }
     } catch (error) {
         console.error("Download error:", error);
-        alert("Đã xảy ra lỗi khi tải file mẫu.");
+        UIHelpers.showNotification("Đã xảy ra lỗi khi tải file mẫu.", "error");
     }
 }
 
-// Upload CSV Data logic
-window.uploadCSVFile = async function(event) {
-    event.preventDefault();
-    const fileInput = document.getElementById('csv-file-input');
-    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-        alert("Vui lòng chọn một file CSV.");
-        return;
-    }
-
-    const file = fileInput.files[0];
-    
-    // Quick Frontend Header Check
-    const isHeaderValid = await validateCSVHeader(file);
-    if (!isHeaderValid) return; // Error message handled inside validateCSVHeader
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const btn = document.getElementById('btn-upload-csv');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang xử lý...';
-    btn.disabled = true;
-    btn.classList.add("opacity-75", "cursor-not-allowed");
-
-    try {
-        const response = await apiFetch('/upload-csv', {
-            method: 'POST',
-            body: formData
-        });
-
-        if (response && response.ok) {
-            const data = await response.json();
-            alert(data.message || "Tải lên thành công!");
-            fileInput.value = ""; // clear text
-            reloadCurrentTab(); // Refresh data
-        } else if (response) {
-            const err = await response.json();
-            alert("Lỗi cấu trúc hoặc dữ liệu:\n" + (err.detail || "Không thể tải file lên máy chủ."));
-        }
-    } catch (error) {
-        console.error("Upload error:", error);
-        alert("Đã xảy ra lỗi kết nối khi tải file lên.");
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        btn.classList.remove("opacity-75", "cursor-not-allowed");
-    }
-}
-
-async function validateCSVHeader(file) {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const text = e.target.result;
-            const header = text.split('\n')[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-            
-            const baseCols = ['student_id', 'full_name', 'email', 'class', 'course'];
-            const metrics = [
-                'active_days', 'login_count', 'video_views', 'document_reads', 'discussion',
-                'assignment_duration_mins', 'ontime_margin', 'weekly_score', 
-                'days_since_last_login', 'session_duration'
-            ];
-            
-            const missing = [];
-            baseCols.forEach(c => { if (!header.includes(c)) missing.push(c); });
-            
-            // Check weeks 1-3 (minimum required for prediction)
-            [1, 2, 3].forEach(w => {
-                metrics.forEach(m => {
-                    const col = `${m}_w${w}`;
-                    if (!header.includes(col)) missing.push(col);
-                });
-            });
-
-            if (missing.length > 0) {
-                alert(`File CSV thiếu các cột bắt buộc:\n${missing.slice(0, 5).join(', ')}${missing.length > 5 ? '...' : ''}\n\nVui lòng tải và sử dụng File Mẫu.`);
-                resolve(false);
-            } else {
-                resolve(true);
-            }
-        };
-        // Read only the first 2KB for efficiency
-        reader.readAsText(file.slice(0, 2048));
-    });
-}
 

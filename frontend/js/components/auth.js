@@ -2,7 +2,16 @@ let authMode = 'login';
 
 function checkAuth() {
     const token = localStorage.getItem('token');
-    const user = JSON.parse(localStorage.getItem('user'));
+    let user = null;
+
+    try {
+        const rawUser = localStorage.getItem('user');
+        user = rawUser ? JSON.parse(rawUser) : null;
+    } catch (error) {
+        console.warn('Invalid user data in localStorage. Clearing auth cache.', error);
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+    }
     
     if (token && user) {
         window.currentUser = user;
@@ -22,6 +31,10 @@ function showMainDashboard() {
     mainDashboard.classList.remove('hidden');
     mainDashboard.style.display = 'flex';
     
+    // Update body class to respect CSS !important rules
+    document.body.classList.remove('is-not-logged-in');
+    document.body.classList.add('is-logged-in');
+    
     const displayName = window.currentUser?.full_name || 'Giảng viên';
     
     // Update Dropdown info
@@ -30,10 +43,16 @@ function showMainDashboard() {
     if (dropdownName) dropdownName.innerText = displayName;
     if (dropdownEmail) dropdownEmail.innerText = window.currentUser?.email || 'N/A';
     
-    // Update navbar avatar
+    // Update navbar and dropdown avatars
     const navAvatar = document.getElementById('user-nav-avatar');
+    const dropdownAvatar = document.getElementById('dropdown-nav-avatar');
+    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=6366f1&color=fff`;
+    
     if (navAvatar) {
-        navAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=6366f1&color=fff`;
+        navAvatar.src = avatarUrl;
+    }
+    if (dropdownAvatar) {
+        dropdownAvatar.src = avatarUrl;
     }
     
     if (typeof initDashboard === 'function') initDashboard();
@@ -49,6 +68,10 @@ function showAuthOverlay() {
     
     mainDashboard.classList.add('hidden');
     mainDashboard.style.display = 'none';
+    
+    // Update body class to respect CSS !important rules
+    document.body.classList.remove('is-logged-in');
+    document.body.classList.add('is-not-logged-in');
 }
 
 function toggleAuthMode() {
@@ -81,7 +104,7 @@ async function handleAuthSubmit(event, type) {
     event.preventDefault();
     const email = document.getElementById(`${type}-email`).value;
     const password = document.getElementById(`${type}-password`).value;
-    const endpoint = type === 'login' ? '/auth/login' : '/auth/register';
+    const endpoint = type === 'login' ? '/v1/auth/login' : '/v1/auth/register';
     
     const payload = { email, password };
     if (type === 'register') {
@@ -102,17 +125,20 @@ async function handleAuthSubmit(event, type) {
                 localStorage.setItem('token', data.access_token);
                 localStorage.setItem('user', JSON.stringify(data.user));
                 window.currentUser = data.user;
-                showMainDashboard();
+                
+                // Use location.reload() to ensure all components and charts are 
+                // cleanly initialized with the new token, identical to F5 behavior.
+                location.reload();
             } else {
-                alert("Đăng ký thành công! Vui lòng đăng nhập.");
+                UIHelpers.showNotification("Đăng ký thành công! Vui lòng đăng nhập.", "success");
                 toggleAuthMode();
             }
         } else {
-            alert(data.detail || "Có lỗi xảy ra");
+            UIHelpers.showNotification(data.detail || "Có lỗi xảy ra", "error");
         }
     } catch (error) {
         console.error("Auth error:", error);
-        alert("Không thể kết nối đến máy chủ");
+        UIHelpers.showNotification("Không thể kết nối đến máy chủ", "error");
     }
 }
 

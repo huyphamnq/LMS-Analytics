@@ -49,6 +49,22 @@ Frontend bao gồm các tệp tin tĩnh. Để vận hành, có thể sử dụn
 ## Lưu ý quan trọng
 - **Quản lý Dữ liệu**: Hệ thống hiện đang kết nối trực tiếp với MongoDB Atlas. Vui lòng cẩn trọng khi thực thi các tác vụ tác động đến cấu trúc dữ liệu.
 - **Cấu hình AI**: Để kích hoạt các tính năng phân tích bằng AI, cần cung cấp **Gemini API Key** thông qua giao diện cấu hình tại Dashboard.
+- **Chuẩn Database**: Xem tài liệu schema và index tại [backend/DATABASE_SCHEMA.md](backend/DATABASE_SCHEMA.md).
+
+## Migration sang schema chuẩn hóa
+
+Các script migration nằm trong `backend/scripts/`:
+
+```bash
+cd backend
+python -m scripts.migrate_normalized_schema
+python -m scripts.import_csv_batch --csv datasets/template.csv --imported-by admin@local --semester S1 --year 2026 --dry-run
+python -m scripts.import_csv_batch --csv <path_to_csv> --imported-by admin@local --semester S1 --year 2026
+python -m scripts.backfill_enrollment_refs
+python -m scripts.bootstrap_production_indexes
+```
+
+Runbook chi tiết: [backend/MIGRATION_RUNBOOK.md](backend/MIGRATION_RUNBOOK.md)
 
 ---
 *Dự án LMS-Analytics - Hệ thống hỗ trợ giảng dạy và quản lý đào tạo.*

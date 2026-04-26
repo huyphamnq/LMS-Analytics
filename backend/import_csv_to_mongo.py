@@ -11,8 +11,7 @@ from typing import List, Optional, Dict, Any
 
 METRICS = [
     'active_days', 'login_count', 'video_views', 'document_reads', 'discussion',
-    'assignment_duration_mins', 'ontime_margin', 'weekly_score', 
-    'days_since_last_login', 'session_duration'
+    'assignment_duration_mins', 'ontime_margin', 'days_since_last_login', 'session_duration', 'weekly_score'
 ]
 
 WEEKS = [1, 2, 3]
@@ -60,7 +59,7 @@ def generate_csv_template(output_path: str):
         writer = csv.writer(f)
         writer.writerow(cols)
         # Sample row
-        sample = ["SV001", "Nguyen Van A", "a.nguyen@example.com", "L01", "Lap trinh Python"]
+        sample = ["SV001", "Nguyen Van A", "a.nguyen@example.com", "L01", "C++"]
         for w in WEEKS:
             for m in METRICS:
                 if m == 'active_days': sample.append("5")
@@ -69,11 +68,70 @@ def generate_csv_template(output_path: str):
         writer.writerow(sample)
     return output_path
 
-def import_csv_to_mongo(csv_file_path):
+def check_existing_data(csv_file_path: str, subject_id: str = None) -> List[Dict[str, str]]:
+    """
+    Kiểm tra xem dữ liệu trong CSV đã tồn tại trong DB chưa.
+    Trả về danh sách các (course_name, class_name) đã có dữ liệu.
+    """
+    if not os.path.exists(csv_file_path):
+        return []
+
+    unique_combos = set()
+    with open(csv_file_path, mode='r', encoding='utf-8-sig') as file:
+        csv_reader = csv.DictReader(file)
+        for row in csv_reader:
+            c_name = row.get('course', '').strip()
+            cl_name = row.get('class', '').strip()
+            s_id = subject_id if subject_id else c_name.lower().replace(' ', '_').strip()
+            if c_name and cl_name and s_id:
+                unique_combos.add((s_id, c_name, cl_name))
+
+    existing = []
+    for s_id, c_name, cl_name in unique_combos:
+        # Check if any student exists with this combo
+        count = student_logs.count_documents({
+            "subject_id": s_id,
+            "course_name": c_name,
+            "class_name": cl_name
+        })
+        if count > 0:
+            existing.append({
+                "subject_id": s_id,
+                "course_name": c_name,
+                "class_name": cl_name
+            })
+    
+    return existing
+
+def import_csv_to_mongo(csv_file_path, subject_id: str = None):
+    """
+    Import CSV vào MongoDB
+    
+    Args:
+        csv_file_path: Đường dẫn file CSV
+        subject_id: ID của môn học (nếu tất cả sinh viên cùng một môn)
+    """
     print(f"Reading and validating data from: {csv_file_path}")
+    if subject_id:
+        print(f"Subject ID: {subject_id}")
 
     if not os.path.exists(csv_file_path):
         raise FileNotFoundError(f"File không tồn tại: {csv_file_path}")
+    
+    # Validate subject_id has a model (if provided)
+    if subject_id:
+        from ml_service import get_available_subjects
+        available_subjects = get_available_subjects()
+        available_subject_ids = [s['subject_id'] for s in available_subjects]
+        
+        if subject_id not in available_subject_ids:
+            raise ValueError(
+                f"❌ Subject '{subject_id}' chưa có model.\n"
+                f"Vui lòng upload model trước khi import dữ liệu.\n"
+                f"Available subjects: {', '.join(available_subject_ids)}"
+            )
+    else:
+        print("⚠️  Warning: subject_id not provided, will use course_name fallback")
 
     documentsToInsert = []
 
@@ -110,9 +168,9 @@ def import_csv_to_mongo(csv_file_path):
                         'discussion':               _int(row.get(f'discussion_{w}')),
                         'assignment_duration_mins': _float(row.get(f'assignment_duration_mins_{w}')),
                         'ontime_margin':            _float(row.get(f'ontime_margin_{w}')),
-                        'weekly_score':             _float(row.get(f'weekly_score_{w}')),
                         'days_since_last_login':    _int(row.get(f'days_since_last_login_{w}')),
                         'session_duration':         _float(row.get(f'session_duration_{w}')),
+                        'weekly_score':             _float(row.get(f'weekly_score_{w}')),
                     })
 
                 document = {
@@ -121,6 +179,7 @@ def import_csv_to_mongo(csv_file_path):
                     'email':       row.get('email', '').strip(),
                     'class_name':  row.get('class', '').strip(),
                     'course_name': row.get('course', '').strip(),
+                    'subject_id':  subject_id if subject_id else row.get('course', '').lower().replace(' ', '_').strip(),  # ← Auto-inject
                     'status':      'in_progress',
                     'weekly_data': weekly_data,
                     'updated_at':  datetime.now(timezone.utc),
@@ -129,6 +188,10 @@ def import_csv_to_mongo(csv_file_path):
 
                 if not document['student_id']:
                     raise ValueError(f"Dòng {line_num}: student_id không được để trống")
+                if not document['subject_id']:
+                    raise ValueError(f"Dòng {line_num}: Không thể xác định subject_id. Vui lòng cung cấp subject_id khi import.")
+                if not document['subject_id']:
+                    raise ValueError(f"Dòng {line_num}: subject_id không được để trống (phải chỉ định môn học)")
 
                 documentsToInsert.append(document)
             except Exception as e:
@@ -142,10 +205,12 @@ def import_csv_to_mongo(csv_file_path):
         inserted_count = 0
         
         for doc in documentsToInsert:
-            # Use student_id AND course_name as the unique filter
+            # Use student_id, course_name, subject_id AND class_name as the unique filter
             filter_query = {
                 "student_id":  doc["student_id"],
-                "course_name": doc["course_name"]
+                "course_name": doc["course_name"],
+                "subject_id":  doc["subject_id"],
+                "class_name":  doc["class_name"]
             }
             
             # Use $set to update existing or insert new
