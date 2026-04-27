@@ -21,8 +21,8 @@ class ModelMetadata:
         accuracy: float = 0.0,
         threshold: float = 0.5,
         trained_date: str = None,
-        model_file: str = "logistic_student_model.pkl",
-        scaler_file: str = "scaler_student.pkl",
+        model_file: str = "rf_student_model.pkl",
+        scaler_file: str = "rf_scaler_student.pkl",
         config_file: str = "model_config.pkl",
     ):
         self.subject_id = subject_id
@@ -150,6 +150,14 @@ class ModelManager:
                 metadata_dict = json.load(f)
             metadata = ModelMetadata.from_dict(metadata_dict)
 
+            # Ưu tiên bộ file Random Forest mới nếu người dùng copy thủ công vào subject cũ.
+            rf_model_file = "rf_student_model.pkl"
+            rf_scaler_file = "rf_scaler_student.pkl"
+            if metadata.model_file != rf_model_file and os.path.exists(os.path.join(subject_dir, rf_model_file)):
+                metadata.model_file = rf_model_file
+            if metadata.scaler_file != rf_scaler_file and os.path.exists(os.path.join(subject_dir, rf_scaler_file)):
+                metadata.scaler_file = rf_scaler_file
+
             # Load model
             model_path = os.path.join(subject_dir, metadata.model_file)
             if not os.path.exists(model_path):
@@ -199,6 +207,12 @@ class ModelManager:
                 with open(metadata_path, "r", encoding="utf-8") as f:
                     metadata_dict = json.load(f)
                 metadata = ModelMetadata.from_dict(metadata_dict)
+                rf_model_file = "rf_student_model.pkl"
+                rf_scaler_file = "rf_scaler_student.pkl"
+                if metadata.model_file != rf_model_file and os.path.exists(os.path.join(subject_dir, rf_model_file)):
+                    metadata.model_file = rf_model_file
+                if metadata.scaler_file != rf_scaler_file and os.path.exists(os.path.join(subject_dir, rf_scaler_file)):
+                    metadata.scaler_file = rf_scaler_file
                 self._metadata_cache[subject_id] = metadata
                 return metadata
         except Exception as e:

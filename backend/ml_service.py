@@ -8,8 +8,7 @@ from model_manager import get_model_manager, ModelManager
 # =========================================================
 MODEL_DIR = os.path.join(os.path.dirname(__file__), 'models')
 
-# Thứ tự 9 metrics theo đúng thứ tự lúc huấn luyện
-# Nguồn: logistic_regression.py (model training script)
+# Thứ tự 9 metrics theo đúng thứ tự lúc huấn luyện Random Forest
 METRICS = [
     'active_days', 'login_count', 'video_views', 'document_reads', 'discussion',
     'assignment_duration_mins', 'ontime_margin', 'days_since_last_login', 'session_duration'
@@ -61,7 +60,7 @@ def calculate_effort_score(weekly_data: list) -> float:
     if not week_dict:
         return 1.0
 
-    # Bảng trọng số dựa trên độ quan trọng của đặc trưng (Model Coefficients)
+    # Bảng trọng số dựa trên độ quan trọng của đặc trưng (Feature Importance)
     # Hướng: Hành vi tích cực -> Cộng điểm, Hành vi tiêu cực (vd: trễ nộp bài) -> Trừ/Ít điểm
     WEIGHTS = {
         'ontime_margin': 0.1,    # Biên an toàn (nộp sớm)
@@ -188,7 +187,13 @@ def get_subject_metadata(subject_id: str) -> dict:
         manager = get_model_manager()
         metadata = manager.get_metadata(subject_id)
         if metadata:
-            return metadata.to_dict()
+            result = metadata.to_dict()
+            _model, _scaler, config, _metadata = manager.load_model(subject_id)
+            if isinstance(config, dict):
+                for key in ("features", "top_risk_increase", "top_risk_decrease"):
+                    if key in config:
+                        result[key] = config[key]
+            return result
         return None
     except Exception as e:
         print(f"Error getting metadata for subject '{subject_id}': {e}")

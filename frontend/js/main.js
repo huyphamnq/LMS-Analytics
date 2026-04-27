@@ -167,9 +167,7 @@ function switchTab(tabId, event) {
     }
 
     // Render component-specific content
-    if(tabId === 'settings' && typeof loadModelMetrics === 'function') {
-        loadModelMetrics();
-    } else if(tabId === 'model-management' && typeof ModelManagement !== 'undefined') {
+    if(tabId === 'model-management' && typeof ModelManagement !== 'undefined') {
         // Render model management component into the tab container
         const tabContainer = document.getElementById('tab-model-management');
         if (tabContainer) {
@@ -206,5 +204,4 @@ window.downloadTemplate = async function() {
         UIHelpers.showNotification("Đã xảy ra lỗi khi tải file mẫu.", "error");
     }
 }
-
 

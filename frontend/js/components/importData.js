@@ -10,7 +10,29 @@ let selectedSubjectName = null;
 let uploadedFile = null;
 let importResults = null;
 let _availableSubjects = [];
+let _existingSubjectData = [];
+let subjectSearchQuery = '';
 let overwriteMode = false;
+
+const IMPORT_BASE_COLUMNS = ['student_id', 'full_name', 'email', 'class', 'course'];
+const IMPORT_MODEL_METRICS = [
+    'active_days',
+    'login_count',
+    'video_views',
+    'document_reads',
+    'discussion',
+    'assignment_duration_mins',
+    'ontime_margin',
+    'days_since_last_login',
+    'session_duration',
+];
+const IMPORT_REQUIRED_COLUMNS = [
+    ...IMPORT_BASE_COLUMNS,
+    ...[1, 2, 3].flatMap(week => [
+        ...IMPORT_MODEL_METRICS.map(metric => `${metric}_w${week}`),
+        `weekly_score_w${week}`,
+    ]),
+];
 
 async function initImportData() {
     importStep = 1;
@@ -18,9 +40,27 @@ async function initImportData() {
     selectedSubjectName = null;
     uploadedFile = null;
     importResults = null;
+    _existingSubjectData = [];
+    subjectSearchQuery = '';
     overwriteMode = false;
     await loadAvailableSubjects();
     renderImportPage();
+}
+
+async function loadExistingSubjectData(subjectId) {
+    try {
+        const response = await apiFetch(`/subjects/${encodeURIComponent(subjectId)}/existing-data`);
+        if (!response || !response.ok) {
+            _existingSubjectData = [];
+            return;
+        }
+
+        const data = await response.json();
+        _existingSubjectData = data.existing || [];
+    } catch (e) {
+        console.error('Error loading existing subject data:', e);
+        _existingSubjectData = [];
+    }
 }
 
 async function loadAvailableSubjects() {
@@ -54,27 +94,27 @@ function renderImportPage() {
 function renderStepIndicator() {
     const steps = [
         { num: 1, label: 'Chọn môn học', icon: 'fa-book' },
-        { num: 2, label: 'Tải file CSV',  icon: 'fa-file-csv' },
-        { num: 3, label: 'Xác nhận',      icon: 'fa-clipboard-check' },
-        { num: 4, label: 'Hoàn thành',    icon: 'fa-circle-check' },
+        { num: 2, label: 'Tải file CSV', icon: 'fa-file-csv' },
+        { num: 3, label: 'Xác nhận', icon: 'fa-clipboard-check' },
+        { num: 4, label: 'Hoàn thành', icon: 'fa-circle-check' },
     ];
 
     const stepsHtml = steps.map((s, idx) => {
-        const isDone    = importStep > s.num;
-        const isActive  = importStep === s.num;
-        const isLast    = idx === steps.length - 1;
+        const isDone = importStep > s.num;
+        const isActive = importStep === s.num;
+        const isLast = idx === steps.length - 1;
 
         const circleClass = isDone
             ? 'bg-green-500 text-white border-green-500'
             : isActive
-            ? 'bg-primary text-white border-primary shadow-md'
-            : 'bg-white text-slate-400 border-slate-200';
+                ? 'bg-primary text-white border-primary shadow-md'
+                : 'bg-white text-slate-400 border-slate-200';
 
         const textClass = isDone
             ? 'text-green-600 font-medium'
             : isActive
-            ? 'text-primary font-semibold'
-            : 'text-slate-400';
+                ? 'text-primary font-semibold'
+                : 'text-slate-400';
 
         const lineClass = isDone
             ? 'bg-green-400'
@@ -85,8 +125,8 @@ function renderStepIndicator() {
             <div class="flex flex-col items-center">
                 <div class="w-9 h-9 rounded-full border-2 flex items-center justify-center transition-all ${circleClass}">
                     ${isDone
-                        ? '<i class="fa-solid fa-check text-sm"></i>'
-                        : `<i class="fa-solid ${s.icon} text-sm"></i>`}
+                ? '<i class="fa-solid fa-check text-sm"></i>'
+                : `<i class="fa-solid ${s.icon} text-sm"></i>`}
                 </div>
                 <span class="text-xs mt-1.5 transition-all ${textClass} hidden sm:block">${s.label}</span>
             </div>
@@ -116,16 +156,58 @@ function renderCurrentStep() {
 }
 
 /* ========== STEP 1: Chọn môn học ========== */
+function getFilteredSubjects() {
+    const query = subjectSearchQuery.trim().toLowerCase();
+    if (!query) return _availableSubjects;
+
+    return _availableSubjects.filter(subject => {
+        const name = String(subject.subject_name || '').toLowerCase();
+        const id = String(subject.subject_id || '').toLowerCase();
+        return name.includes(query) || id.includes(query);
+    });
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderSubjectCards(subjects) {
+    if (_availableSubjects.length === 0) return '';
+
+    if (subjects.length === 0) {
+        return `
+        <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center">
+            <i class="fa-solid fa-magnifying-glass text-slate-300 text-xl mb-2"></i>
+            <p class="text-sm font-medium text-slate-500">Không tìm thấy môn học</p>
+            <p class="text-xs text-slate-400 mt-1">Thử tìm theo tên môn hoặc mã môn khác</p>
+        </div>`;
+    }
+
+    return subjects.map(s => {
+        const acc = s.accuracy > 1 ? s.accuracy.toFixed(1) : (s.accuracy * 100).toFixed(1);
+        return `<button type="button" onclick="quickSelectSubjectFromButton(this)"
+            class="subject-quick-btn text-left p-4 rounded-xl border border-slate-200 hover:border-primary hover:bg-blue-50 transition-all group"
+            data-id="${escapeHtml(s.subject_id)}"
+            data-name="${escapeHtml(s.subject_name)}">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="text-sm font-semibold text-slate-700 group-hover:text-primary truncate">${escapeHtml(s.subject_name)}</p>
+                    <p class="text-[11px] text-slate-400 mt-1 font-mono">${escapeHtml(s.subject_id)} · v${escapeHtml(s.version)}</p>
+                </div>
+                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-50 text-green-600 shrink-0">${acc}%</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-2">Bấm để chọn môn này</p>
+        </button>`;
+    }).join('');
+}
+
 function renderStep1() {
-    const subjectsOptions = _availableSubjects.length === 0
-        ? `<option value="" disabled>Chưa có mô hình nào được tải lên</option>`
-        : [`<option value="">-- Chọn môn học --</option>`,
-           ..._availableSubjects.map(s => {
-                const acc = s.accuracy > 1 ? s.accuracy.toFixed(1) : (s.accuracy * 100).toFixed(1);
-                return `<option value="${s.subject_id}" data-name="${s.subject_name}">
-                    ${s.subject_name} · v${s.version} · ${acc}% accuracy
-                </option>`;
-           })].join('');
+    const filteredSubjects = getFilteredSubjects();
 
     return `
     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -144,61 +226,91 @@ function renderStep1() {
                 </div>
             </div>` : ''}
 
-            <div>
-                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Môn học</label>
-                <select id="import-subject-select"
-                    class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
-                    ${subjectsOptions}
-                </select>
-            </div>
-
-            <!-- Subject cards for quick select -->
             ${_availableSubjects.length > 0 ? `
             <div>
-                <p class="text-xs text-slate-400 mb-2">Hoặc chọn nhanh:</p>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    ${_availableSubjects.map(s => {
-                        const acc = s.accuracy > 1 ? s.accuracy.toFixed(1) : (s.accuracy * 100).toFixed(1);
-                        return `<button type="button" onclick="quickSelectSubject('${s.subject_id}','${s.subject_name}')"
-                            class="subject-quick-btn text-left p-3 rounded-xl border border-slate-200 hover:border-primary hover:bg-blue-50 transition-all group"
-                            data-id="${s.subject_id}">
-                            <p class="text-xs font-semibold text-slate-700 group-hover:text-primary truncate">${s.subject_name}</p>
-                            <p class="text-[11px] text-slate-400 mt-0.5 font-mono">${acc}% · v${s.version}</p>
-                        </button>`;
-                    }).join('')}
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Tìm kiếm môn học</label>
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="search" id="import-subject-search"
+                        value="${escapeHtml(subjectSearchQuery)}"
+                        oninput="updateSubjectSearch(this.value)"
+                        placeholder="Nhập tên môn hoặc mã môn..."
+                        class="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+                </div>
+                <p id="subject-search-count" class="text-xs text-slate-400 mt-1.5">${filteredSubjects.length}/${_availableSubjects.length} môn phù hợp</p>
+            </div>` : ''}
+
+            ${_availableSubjects.length > 0 ? `
+            <div>
+                <p class="text-xs text-slate-400 mb-2">Chọn môn học từ kết quả tìm kiếm:</p>
+                <div id="subject-quick-list" class="${filteredSubjects.length > 0 ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3' : ''}">
+                    ${renderSubjectCards(filteredSubjects)}
                 </div>
             </div>` : ''}
-        </div>
-
-        <div class="px-6 pb-5 flex justify-end">
-            <button type="button" onclick="goToStep2()"
-                class="px-6 py-2.5 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-all shadow-sm flex items-center gap-2 ${_availableSubjects.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}">
-                Tiếp tục <i class="fa-solid fa-arrow-right"></i>
-            </button>
         </div>
     </div>`;
 }
 
+function updateSubjectSearch(value) {
+    subjectSearchQuery = value || '';
+    const filteredSubjects = getFilteredSubjects();
+    const list = document.getElementById('subject-quick-list');
+    const count = document.getElementById('subject-search-count');
+
+    if (list) {
+        list.className = filteredSubjects.length > 0 ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3' : '';
+        list.innerHTML = renderSubjectCards(filteredSubjects);
+    }
+    if (count) count.textContent = `${filteredSubjects.length}/${_availableSubjects.length} môn phù hợp`;
+}
+
+function quickSelectSubjectFromButton(button) {
+    selectSubjectAndContinue(button.dataset.id, button.dataset.name);
+}
+
 function quickSelectSubject(id, name) {
-    const sel = document.getElementById('import-subject-select');
-    if (sel) sel.value = id;
     document.querySelectorAll('.subject-quick-btn').forEach(btn => {
         btn.classList.remove('border-primary', 'bg-blue-50');
         if (btn.dataset.id === id) btn.classList.add('border-primary', 'bg-blue-50');
     });
 }
 
-function goToStep2() {
-    const sel = document.getElementById('import-subject-select');
-    if (!sel || !sel.value) {
-        showImportNotification('Vui lòng chọn môn học', 'warning');
-        return;
-    }
-    selectedSubjectId = sel.value;
-    const opt = sel.options[sel.selectedIndex];
-    selectedSubjectName = opt.dataset.name || opt.textContent.trim().split('·')[0].trim();
+async function selectSubjectAndContinue(id, name) {
+    if (!id) return;
+
+    selectedSubjectId = id;
+    selectedSubjectName = name || id;
+    quickSelectSubject(id, name);
+    await loadExistingSubjectData(selectedSubjectId);
     importStep = 2;
     refreshStepContent();
+}
+
+function renderExistingSubjectDataNotice() {
+    if (_existingSubjectData.length === 0) return '';
+
+    const shown = _existingSubjectData.slice(0, 6);
+    const remaining = _existingSubjectData.length - shown.length;
+
+    return `
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+        <div class="flex gap-3">
+            <i class="fa-solid fa-circle-info text-amber-500 mt-0.5 shrink-0"></i>
+            <div class="min-w-0 flex-1">
+                <p class="text-sm font-semibold text-amber-800">Môn này đã có dữ liệu cho ${_existingSubjectData.length} lớp</p>
+                <p class="text-xs text-amber-700 mt-0.5">Nếu CSV thuộc một trong các lớp bên dưới, hệ thống sẽ yêu cầu xác nhận ghi đè trước khi import.</p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    ${shown.map(item => `
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-amber-200 text-xs text-amber-800">
+                            <i class="fa-solid fa-users text-amber-400"></i>
+                            ${item.class_name} · ${item.student_count} SV
+                        </span>
+                    `).join('')}
+                    ${remaining > 0 ? `<span class="px-2.5 py-1 rounded-lg bg-amber-100 text-xs text-amber-700">+${remaining} lớp khác</span>` : ''}
+                </div>
+            </div>
+        </div>
+    </div>`;
 }
 
 /* ========== STEP 2: Upload CSV ========== */
@@ -214,6 +326,8 @@ function renderStep2() {
         </div>
 
         <div class="p-6 space-y-4">
+            ${renderExistingSubjectDataNotice()}
+
             <!-- Drag-drop zone -->
             <div id="csv-drop-zone"
                 class="border-2 border-dashed border-slate-200 rounded-2xl p-10 text-center cursor-pointer hover:border-primary/60 hover:bg-blue-50/50 transition-all"
@@ -246,7 +360,8 @@ function renderStep2() {
                     <i class="fa-solid fa-table-cells mr-1"></i> Cấu trúc file CSV yêu cầu
                 </p>
                 <p class="text-xs text-slate-500 mb-2">Các cột bắt buộc: <code class="bg-white px-1 rounded border border-slate-200">student_id · full_name · email · class · course</code></p>
-                <p class="text-xs text-slate-500">+ 30 cột metrics: <code class="bg-white px-1 rounded border border-slate-200">feature_w1, feature_w2, feature_w3</code> (10 đặc trưng × 3 tuần, bao gồm weekly_score)</p>
+                <p class="text-xs text-slate-500 mb-2">+ 27 cột đặc trưng Random Forest: <code class="bg-white px-1 rounded border border-slate-200">active_days_w1 ... session_duration_w3</code></p>
+                <p class="text-xs text-slate-500">+ 3 cột điểm tuần để lưu lịch sử: <code class="bg-white px-1 rounded border border-slate-200">weekly_score_w1 · weekly_score_w2 · weekly_score_w3</code></p>
                 <button type="button" onclick="downloadCsvTemplate()"
                     class="mt-3 flex items-center gap-1.5 text-xs text-primary hover:underline font-medium">
                     <i class="fa-solid fa-download"></i> Tải file mẫu CSV
@@ -283,8 +398,8 @@ function csvFileSelect(e) {
     const file = e.target.files[0];
     if (file) applyCsvFile(file);
 }
-function applyCsvFile(file) {
-    if (!file.name.endsWith('.csv')) {
+async function applyCsvFile(file) {
+    if (!file.name.toLowerCase().endsWith('.csv')) {
         showImportNotification('Chỉ chấp nhận file định dạng .csv', 'error');
         return;
     }
@@ -292,6 +407,22 @@ function applyCsvFile(file) {
         showImportNotification('File quá lớn. Tối đa 10MB.', 'error');
         return;
     }
+
+    try {
+        const missingColumns = await validateCsvHeader(file);
+        if (missingColumns.length > 0) {
+            const preview = missingColumns.slice(0, 8).join(', ');
+            const suffix = missingColumns.length > 8 ? ` và ${missingColumns.length - 8} cột khác` : '';
+            showImportNotification(`CSV thiếu cột: ${preview}${suffix}`, 'error');
+            clearCsvFile();
+            return;
+        }
+    } catch (error) {
+        showImportNotification(error.message || 'Không thể đọc header của file CSV', 'error');
+        clearCsvFile();
+        return;
+    }
+
     uploadedFile = file;
 
     const preview = document.getElementById('csv-file-preview');
@@ -304,6 +435,58 @@ function applyCsvFile(file) {
     if (sizeEl) sizeEl.textContent = `${(file.size / 1024).toFixed(1)} KB`;
     if (dropZone) dropZone.classList.add('hidden');
 }
+
+function normalizeCsvHeaderName(name) {
+    return String(name || '').replace(/^\uFEFF/, '').trim().toLowerCase();
+}
+
+function splitCsvHeaderLine(line) {
+    const cells = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        const next = line[i + 1];
+
+        if (ch === '"' && inQuotes && next === '"') {
+            current += '"';
+            i++;
+        } else if (ch === '"') {
+            inQuotes = !inQuotes;
+        } else if (ch === ',' && !inQuotes) {
+            cells.push(current);
+            current = '';
+        } else {
+            current += ch;
+        }
+    }
+
+    cells.push(current);
+    return cells;
+}
+
+function readFileStart(file, maxBytes = 64 * 1024) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result || '');
+        reader.onerror = () => reject(reader.error || new Error('Không thể đọc file CSV'));
+        reader.readAsText(file.slice(0, maxBytes), 'utf-8');
+    });
+}
+
+async function validateCsvHeader(file) {
+    const text = await readFileStart(file);
+    const firstLine = text.split(/\r?\n/).find(line => line.trim().length > 0);
+
+    if (!firstLine) {
+        throw new Error('File CSV không có dòng header');
+    }
+
+    const headers = splitCsvHeaderLine(firstLine).map(normalizeCsvHeaderName);
+    return IMPORT_REQUIRED_COLUMNS.filter(col => !headers.includes(col));
+}
+
 function clearCsvFile() {
     uploadedFile = null;
     const preview = document.getElementById('csv-file-preview');
@@ -348,6 +531,7 @@ function renderStep3() {
                     </p>
                     <p class="text-sm font-semibold text-blue-800 truncate">${selectedSubjectName}</p>
                     <p class="text-xs text-blue-500 font-mono mt-0.5">${selectedSubjectId}</p>
+                    <p class="text-xs text-blue-600 mt-1">Random Forest</p>
                 </div>
                 <div class="bg-green-50 rounded-xl p-4 border border-green-100">
                     <p class="text-xs text-green-500 font-semibold uppercase tracking-wide mb-1.5">
@@ -362,11 +546,11 @@ function renderStep3() {
             <div class="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-2">
                 <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Hệ thống sẽ thực hiện</p>
                 ${[
-                    ['fa-tag', 'Gán tự động subject_id = ' + selectedSubjectId + ' cho tất cả sinh viên'],
-                    ['fa-database', 'Import dữ liệu sinh viên vào cơ sở dữ liệu'],
-                    ['fa-robot', 'Chạy dự đoán rủi ro tự động với mô hình đã chọn'],
-                    ['fa-save', 'Lưu kết quả dự đoán vào hệ thống'],
-                ].map(([icon, text]) => `
+            ['fa-tag', 'Gán tự động subject_id = ' + selectedSubjectId + ' cho tất cả sinh viên'],
+            ['fa-database', 'Import dữ liệu sinh viên vào cơ sở dữ liệu'],
+            ['fa-robot', 'Chạy dự đoán rủi ro tự động với Random Forest'],
+            ['fa-save', 'Lưu kết quả dự đoán vào hệ thống'],
+        ].map(([icon, text]) => `
                 <div class="flex items-center gap-2.5 text-xs text-slate-600">
                     <i class="fa-solid ${icon} text-primary/60 w-4 text-center"></i>
                     ${text}
@@ -427,8 +611,8 @@ function renderStep4() {
             </h3>
             <p class="text-slate-500 text-sm mt-2">
                 ${success
-                    ? `Đã xử lý và dự đoán cho <strong class="text-slate-700">${importResults.synced || 0} sinh viên</strong>`
-                    : (importResults?.error || 'Đã xảy ra lỗi không xác định')}
+            ? `Đã xử lý và dự đoán cho <strong class="text-slate-700">${importResults.synced || 0} sinh viên</strong>`
+            : (importResults?.error || 'Đã xảy ra lỗi không xác định')}
             </p>
         </div>
 
@@ -477,13 +661,15 @@ function resetAndNewImport() {
     selectedSubjectName = null;
     uploadedFile = null;
     importResults = null;
+    _existingSubjectData = [];
+    subjectSearchQuery = '';
     overwriteMode = false;
     loadAvailableSubjects().then(() => refreshStepContent());
 }
 
 function goToDashboard() {
-    if (typeof showTab === 'function') {
-        showTab('overview');
+    if (typeof switchTab === 'function') {
+        switchTab('overview');
     } else {
         window.location.hash = 'overview';
     }
@@ -492,7 +678,7 @@ function goToDashboard() {
 /* ========== Import logic ========== */
 async function confirmImport(overwrite = false, event = null) {
     if (event) event.preventDefault();
-    
+
     const btn = document.getElementById('confirm-import-btn');
     const progress = document.getElementById('import-progress');
     const loadingText = document.getElementById('import-loading-text');
@@ -522,7 +708,7 @@ async function confirmImport(overwrite = false, event = null) {
         });
 
         const result = await response.json();
-        
+
         // Handle conflict - dữ liệu đã tồn tại
         if (response.status === 409 || result.error === 'DATA_EXISTS') {
             console.warn('⚠️ Conflict detected - data already exists');
@@ -530,14 +716,14 @@ async function confirmImport(overwrite = false, event = null) {
             importResults = null; // Clear any previous result
             if (progress) progress.classList.add('hidden');
             if (btn) btn.disabled = false;
-            
+
             // Format details message
             const details = result.existing ? result.existing.map(e => `${e.course_name} (${e.class_name})`).join(', ') : 'Dữ liệu';
             showImportNotification(`❌ Dữ liệu của ${details} đã tồn tại! Vui lòng chọn ghi đè nếu muốn cập nhật.`, 'warning');
-            
+
             // Make sure we stay on step 3, don't advance
             importStep = 3;
-            
+
             // Re-render step 3 with overwrite warning
             refreshStepContent();
             return;
@@ -555,7 +741,7 @@ async function confirmImport(overwrite = false, event = null) {
         if (progress) progress.classList.add('hidden');
         if (btn) btn.disabled = false;
         refreshStepContent();
-        
+
     } catch (error) {
         console.error('❌ Import error:', error);
         showImportNotification(error.message || 'Đã xảy ra lỗi không xác định', 'error');

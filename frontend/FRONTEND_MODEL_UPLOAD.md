@@ -70,14 +70,14 @@ Sidebar
 1. **File Model (.pkl)** (bắt buộc)
    - Chọn file: Kéo thả hoặc click
    - File phải là `.pkl` hoặc `.joblib`
-   - Ví dụ tên: `logistic_student_model.pkl`, `model.pkl`, `student_model.pkl`, ...
-   - **Lưu lại trong hệ thống as:** `logistic_student_model.pkl`
+   - Ví dụ tên: `rf_student_model.pkl`, `model.pkl`, `student_model.pkl`, ...
+   - **Lưu lại trong hệ thống as:** `rf_student_model.pkl`
 
 2. **File Scaler (.pkl)** (bắt buộc)
    - Chọn file: Kéo thả hoặc click
    - File phải là `.pkl` hoặc `.joblib`
-   - Ví dụ tên: `scaler_student.pkl`, `scaler.pkl`, ...
-   - **Lưu lại trong hệ thống as:** `scaler_student.pkl`
+   - Ví dụ tên: `rf_scaler_student.pkl`, `scaler.pkl`, ...
+   - **Lưu lại trong hệ thống as:** `rf_scaler_student.pkl`
 
 3. **File Config (.pkl)** (tùy chọn)
    - Chọn file: Kéo thả hoặc click

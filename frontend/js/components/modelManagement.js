@@ -11,6 +11,7 @@ const ModelManagement = {
         selectedFiles: { model: null, scaler: null, config: null },
         detailModal: null,
         deleteTarget: null,
+        searchQuery: '',
     },
 
     render() {
@@ -101,6 +102,16 @@ const ModelManagement = {
                             <i class="fa-solid fa-arrows-rotate"></i> Làm mới
                         </button>
                     </div>
+                    <div class="px-6 py-3 border-b border-slate-100 bg-white">
+                        <div class="relative">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                            <input type="search" id="model-search-input"
+                                placeholder="Tìm theo tên môn, mã môn, phiên bản hoặc file..."
+                                oninput="ModelManagement.updateSearch(this.value)"
+                                class="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+                        </div>
+                        <p id="model-search-count" class="text-[11px] text-slate-400 mt-1.5"></p>
+                    </div>
                     <div id="subjects-list-panel" class="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
                         <!-- Subjects rendered here -->
                         <div class="p-8 text-center text-slate-400">
@@ -182,6 +193,46 @@ const ModelManagement = {
         </div>`;
     },
 
+    _escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    },
+
+    _escapeJsString(value) {
+        return String(value ?? '')
+            .replace(/\\/g, '\\\\')
+            .replace(/'/g, "\\'")
+            .replace(/\n/g, '\\n')
+            .replace(/\r/g, '\\r');
+    },
+
+    updateSearch(value) {
+        this.state.searchQuery = value || '';
+        this.renderSubjectsList();
+    },
+
+    getFilteredSubjects() {
+        const query = this.state.searchQuery.trim().toLowerCase();
+        if (!query) return this.state.subjects;
+
+        return this.state.subjects.filter(subject => {
+            const searchable = [
+                subject.subject_name,
+                subject.subject_id,
+                subject.version,
+                subject.model_file,
+                subject.scaler_file,
+                subject.config_file,
+            ].map(value => String(value || '').toLowerCase()).join(' ');
+
+            return searchable.includes(query);
+        });
+    },
+
     renderSubjectsList() {
         const panel = document.getElementById('subjects-list-panel');
         if (!panel) return;
@@ -196,7 +247,23 @@ const ModelManagement = {
             return;
         }
 
-        panel.innerHTML = this.state.subjects.map(s => {
+        const filteredSubjects = this.getFilteredSubjects();
+        const count = document.getElementById('model-search-count');
+        if (count) {
+            count.textContent = `${filteredSubjects.length}/${this.state.subjects.length} mô hình phù hợp`;
+        }
+
+        if (filteredSubjects.length === 0) {
+            panel.innerHTML = `
+                <div class="p-10 text-center">
+                    <i class="fa-solid fa-magnifying-glass text-4xl text-slate-200 block mb-3"></i>
+                    <p class="text-slate-500 font-medium text-sm">Không tìm thấy mô hình</p>
+                    <p class="text-slate-400 text-xs mt-1">Thử tìm theo tên môn, mã môn hoặc phiên bản khác</p>
+                </div>`;
+            return;
+        }
+
+        panel.innerHTML = filteredSubjects.map(s => {
             const hasAccuracy = s.accuracy && s.accuracy > 0;
             const acc = hasAccuracy 
                 ? (s.accuracy > 1 ? s.accuracy.toFixed(1) : (s.accuracy * 100).toFixed(1))
@@ -208,29 +275,35 @@ const ModelManagement = {
             
             // Priority: subject_name, then subject_id
             const displayName = s.subject_name || s.subject_id;
+            const safeSubjectId = this._escapeHtml(s.subject_id);
+            const safeDisplayName = this._escapeHtml(displayName);
+            const safeVersion = this._escapeHtml(s.version);
+            const editName = this._escapeJsString(displayName);
+            const editVersion = this._escapeJsString(s.version);
+            const deleteName = this._escapeJsString(displayName);
 
             return `
-            <div class="p-4 hover:bg-slate-50 transition-colors" data-subject-id="${s.subject_id}">
+            <div class="p-4 hover:bg-slate-50 transition-colors" data-subject-id="${safeSubjectId}">
                 <div class="flex items-start justify-between gap-3">
                     <div class="flex items-center gap-3 min-w-0">
                         <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shrink-0">
                             <i class="fa-solid fa-brain text-primary text-sm"></i>
                         </div>
                         <div class="min-w-0">
-                            <p class="font-semibold text-slate-800 text-sm truncate">${displayName}</p>
-                            <span class="inline-block text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded mt-0.5">${s.subject_id}</span>
+                            <p class="font-semibold text-slate-800 text-sm truncate">${safeDisplayName}</p>
+                            <span class="inline-block text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded mt-0.5">${safeSubjectId}</span>
                         </div>
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0">
-                        <button type="button" onclick="ModelManagement.editMetadata('${s.subject_id}','${displayName.replace(/'/g,"\\'")}',${ (s.accuracy > 1 ? s.accuracy : s.accuracy*100).toFixed(1) },'${s.version}')"
+                        <button type="button" onclick="ModelManagement.editMetadata('${this._escapeJsString(s.subject_id)}','${editName}',${ (s.accuracy > 1 ? s.accuracy : s.accuracy*100).toFixed(1) },'${editVersion}')"
                             class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors" title="Sửa tên & accuracy">
                             <i class="fa-solid fa-pen text-xs"></i>
                         </button>
-                        <button type="button" onclick="ModelManagement.viewDetails('${s.subject_id}')"
+                        <button type="button" onclick="ModelManagement.viewDetails('${this._escapeJsString(s.subject_id)}')"
                             class="p-2 rounded-lg text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors" title="Xem chi tiết">
                             <i class="fa-solid fa-eye text-xs"></i>
                         </button>
-                        <button type="button" onclick="ModelManagement.deleteModel('${s.subject_id}','${displayName}')"
+                        <button type="button" onclick="ModelManagement.deleteModel('${this._escapeJsString(s.subject_id)}','${deleteName}')"
                             class="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Xóa mô hình">
                             <i class="fa-solid fa-trash text-xs"></i>
                         </button>
@@ -238,8 +311,8 @@ const ModelManagement = {
                 </div>
                 <div class="flex items-center gap-3 mt-3 ml-12">
                     <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full ${accColor}">${acc}% accuracy</span>
-                    <span class="text-[11px] text-slate-400">v${s.version}</span>
-                    <span class="text-[11px] text-slate-400">Threshold: ${s.threshold}</span>
+                    <span class="text-[11px] text-slate-400">v${safeVersion}</span>
+                    <span class="text-[11px] text-slate-400">Threshold: ${this._escapeHtml(s.threshold)}</span>
                     <span class="text-[11px] text-slate-400 ml-auto">${trainedDate}</span>
                 </div>
             </div>`;
@@ -257,6 +330,8 @@ const ModelManagement = {
         try {
             const subjects = await getAvailableSubjects();
             this.state.subjects = subjects || [];
+            const search = document.getElementById('model-search-input');
+            if (search) search.value = this.state.searchQuery;
             this.renderSubjectsList();
         } catch (e) {
             console.error(e);
@@ -505,13 +580,13 @@ const ModelManagement = {
                 ${topRisk.length > 0 ? `
                 <div>
                     <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                        <i class="fa-solid fa-arrow-trend-up text-red-400 mr-1"></i> Top hành vi tăng nguy cơ
+                        <i class="fa-solid fa-chart-simple text-red-400 mr-1"></i> Đặc trưng quan trọng nhất
                     </p>
                     <div class="space-y-1.5">
                         ${topRisk.slice(0, 4).map((f, i) => {
                             const name = typeof f === 'object' ? (f.feature || f.name || '') : f;
-                            const coef = typeof f === 'object' ? f.coefficient : null;
-                            const barW = Math.min(100, Math.abs(coef || 0) * 200);
+                            const score = typeof f === 'object' ? (f.importance ?? f.coefficient) : null;
+                            const barW = Math.min(100, Math.abs(score || 0) * 200);
                             return `<div class="flex items-center gap-2">
                                 <span class="text-[10px] text-slate-400 w-4 text-right">${i + 1}</span>
                                 <div class="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
@@ -526,13 +601,13 @@ const ModelManagement = {
                 ${topSafe.length > 0 ? `
                 <div>
                     <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                        <i class="fa-solid fa-arrow-trend-down text-green-400 mr-1"></i> Top hành vi giảm nguy cơ
+                        <i class="fa-solid fa-chart-simple text-green-400 mr-1"></i> Đặc trưng ít ảnh hưởng nhất
                     </p>
                     <div class="space-y-1.5">
                         ${topSafe.slice(0, 4).map((f, i) => {
                             const name = typeof f === 'object' ? (f.feature || f.name || '') : f;
-                            const coef = typeof f === 'object' ? f.coefficient : null;
-                            const barW = Math.min(100, Math.abs(coef || 0) * 200);
+                            const score = typeof f === 'object' ? (f.importance ?? f.coefficient) : null;
+                            const barW = Math.min(100, Math.abs(score || 0) * 200);
                             return `<div class="flex items-center gap-2">
                                 <span class="text-[10px] text-slate-400 w-4 text-right">${i + 1}</span>
                                 <div class="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
@@ -547,8 +622,8 @@ const ModelManagement = {
                 <!-- Meta info -->
                 <div class="bg-slate-50 rounded-xl p-3 space-y-1.5 text-xs text-slate-500">
                     <div class="flex justify-between"><span>Ngày huấn luyện</span><span class="font-medium text-slate-700">${trainedDate}</span></div>
-                    <div class="flex justify-between"><span>File model</span><span class="font-mono text-slate-600">${m.model_file || 'logistic_student_model.pkl'}</span></div>
-                    <div class="flex justify-between"><span>File scaler</span><span class="font-mono text-slate-600">${m.scaler_file || 'scaler_student.pkl'}</span></div>
+                    <div class="flex justify-between"><span>File model</span><span class="font-mono text-slate-600">${m.model_file || 'rf_student_model.pkl'}</span></div>
+                    <div class="flex justify-between"><span>File scaler</span><span class="font-mono text-slate-600">${m.scaler_file || 'rf_scaler_student.pkl'}</span></div>
                 </div>
             </div>`;
         } catch (e) {

@@ -135,7 +135,7 @@ class InterventionCreate(BaseModel):
     note: str
 
 # Schema for incoming learning behavior data mapping
-# 9 metrics đúng theo model logistic_regression.py
+# 9 metrics đúng theo model Random Forest
 class BehaviorData(BaseModel):
     student_id: str
     subject_id: str                         # ⚠️ REQUIRED: ID của môn học
@@ -860,13 +860,23 @@ def translate_feature_name(feature: str) -> str:
 
 def build_ai_prompt(student_data: dict, insights: dict, course_name: str):
     """Xây dựng prompt với định hướng rủi ro từ insights học máy"""
-    # top_risk_increase: Các yếu tố đẩy sinh viên vào rủi ro (Trọng số DƯƠNG)
-    # top_risk_decrease: Các yếu tố kéo sinh viên về an toàn (Trọng số ÂM)
-    risk_factors = insights.get('top_risk_increase', [])
-    safe_factors = insights.get('top_risk_decrease', [])
-    
-    risk_text = ", ".join([f"{translate_feature_name(i['feature'])} (Trọng số: {i.get('Weight', i.get('weight', 0)):.2f})" for i in risk_factors]) if risk_factors else "Không có do thiếu file đánh giá insights"
-    safe_text = ", ".join([f"{translate_feature_name(i['feature'])} (Trọng số: {i.get('Weight', i.get('weight', 0)):.2f})" for i in safe_factors]) if safe_factors else "Không có do thiếu file đánh giá insights"
+    # Random Forest dùng feature importance, không có hướng âm/dương như Logistic Regression.
+    important_factors = insights.get('top_risk_increase', [])
+    less_important_factors = insights.get('top_risk_decrease', [])
+
+    def format_importance(items):
+        if not items:
+            return "Không có do thiếu file đánh giá insights"
+
+        formatted = []
+        for item in items:
+            raw_score = item.get('importance', item.get('Weight', item.get('weight', 0)))
+            score = float(raw_score or 0)
+            formatted.append(f"{translate_feature_name(item['feature'])} (Importance: {score:.4f})")
+        return ", ".join(formatted)
+
+    important_text = format_importance(important_factors)
+    less_important_text = format_importance(less_important_factors)
 
     pred = student_data.get("prediction") or {}
     pred_label = pred.get("risk_label", "Chưa rõ")
@@ -874,13 +884,13 @@ def build_ai_prompt(student_data: dict, insights: dict, course_name: str):
 
     prompt = f"""
     Bạn là chuyên gia phân tích dữ liệu học tập cho môn: {course_name}.
-    Dựa trên huấn luyện máy học thực tế, mô hình cho môn này có những đặc trưng sau:
-    - Các hành vi làm TĂNG NGUY CƠ RỚT MÔN (trọng số DƯƠNG): {risk_text}
-    - Các hành vi giúp AN TOÀN, QUA MÔN (trọng số ÂM): {safe_text}
+    Dựa trên huấn luyện Random Forest thực tế, mô hình cho môn này có những đặc trưng sau:
+    - Các đặc trưng quan trọng nhất khi phân loại rủi ro: {important_text}
+    - Các đặc trưng ít ảnh hưởng nhất: {less_important_text}
 
     KẾT QUẢ DỰ ĐOÁN TỪ MÔ HÌNH HỌC MÁY:
     Mô hình đã phân loại sinh viên này vào nhóm: **{pred_label}** với xác suất rủi ro là {pred_prob:.1f}%.
-    Lưu ý: Bạn PHẢI giải thích DỰA TRÊN KẾT QUẢ NÀY. Nếu mô hình dự đoán là 'Nguy cơ', hãy chỉ ra số liệu nào trong logs trùng khớp với đặc trưng rủi ro. Nếu 'An toàn', hãy giải thích các điểm tích cực. Tuyệt đối không đưa ra đánh giá trái ngược với kết luận của mô hình học máy.
+    Lưu ý: Bạn PHẢI giải thích DỰA TRÊN KẾT QUẢ NÀY. Nếu mô hình dự đoán là 'Nguy cơ', hãy chỉ ra số liệu nào trong logs trùng khớp với các đặc trưng quan trọng. Nếu 'An toàn', hãy giải thích các điểm tích cực. Tuyệt đối không đưa ra đánh giá trái ngược với kết luận của mô hình học máy.
 
     DỮ LIỆU SINH VIÊN TÓM TẮT:
     {json.dumps(student_data, ensure_ascii=False, indent=2)}
@@ -1120,6 +1130,47 @@ def get_subject_metadata_endpoint(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/subjects/{subject_id}/existing-data")
+def get_subject_existing_data(
+    subject_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Liệt kê các lớp của một subject đã có dữ liệu trong student_logs."""
+    try:
+        rows = list(student_logs.aggregate([
+            {"$match": {"subject_id": subject_id}},
+            {
+                "$group": {
+                    "_id": {
+                        "course_name": {"$ifNull": ["$course_name", ""]},
+                        "class_name": {"$ifNull": ["$class_name", ""]},
+                    },
+                    "student_count": {"$sum": 1},
+                    "updated_at": {"$max": "$updated_at"},
+                }
+            },
+            {"$sort": {"_id.course_name": 1, "_id.class_name": 1}},
+        ]))
+
+        existing = []
+        for row in rows:
+            existing.append({
+                "subject_id": subject_id,
+                "course_name": row["_id"].get("course_name") or "N/A",
+                "class_name": row["_id"].get("class_name") or "N/A",
+                "student_count": row.get("student_count", 0),
+                "updated_at": row.get("updated_at").isoformat() if row.get("updated_at") else None,
+            })
+
+        return {
+            "subject_id": subject_id,
+            "total_classes": len(existing),
+            "existing": existing,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 class UploadSubjectModelRequest(BaseModel):
     subject_id: str
     subject_name: str
@@ -1146,8 +1197,8 @@ async def upload_subject_model(
     
     Files được lưu tại: backend/models/subjects/{subject_id}/
     Luôn lưu với tên chuẩn:
-    - logistic_student_model.pkl (model file)
-    - scaler_student.pkl (scaler file)
+    - rf_student_model.pkl (model file)
+    - rf_scaler_student.pkl (scaler file)
     - model_config.pkl (config file - tùy chọn)
     
     ⚠️ Threshold:
@@ -1162,12 +1213,13 @@ async def upload_subject_model(
         manager = get_model_manager()
         
         # Validate files
-        if not model_file.filename.endswith('.pkl'):
-            raise HTTPException(status_code=400, detail="Model file must be .pkl")
-        if not scaler_file.filename.endswith('.pkl'):
-            raise HTTPException(status_code=400, detail="Scaler file must be .pkl")
-        if config_file and not config_file.filename.endswith('.pkl'):
-            raise HTTPException(status_code=400, detail="Config file must be .pkl")
+        allowed_ext = ('.pkl', '.joblib')
+        if not model_file.filename.endswith(allowed_ext):
+            raise HTTPException(status_code=400, detail="Model file must be .pkl or .joblib")
+        if not scaler_file.filename.endswith(allowed_ext):
+            raise HTTPException(status_code=400, detail="Scaler file must be .pkl or .joblib")
+        if config_file and not config_file.filename.endswith(allowed_ext):
+            raise HTTPException(status_code=400, detail="Config file must be .pkl or .joblib")
         
         # Load files (joblib.load từ bytes)
         model_bytes = await model_file.read()
@@ -1235,8 +1287,8 @@ async def upload_subject_model(
             version=version,
             accuracy=extracted_accuracy,
             threshold=extracted_threshold,
-            model_file="logistic_student_model.pkl",
-            scaler_file="scaler_student.pkl",
+            model_file="rf_student_model.pkl",
+            scaler_file="rf_scaler_student.pkl",
             config_file="model_config.pkl" if config_file else None,
         )
         

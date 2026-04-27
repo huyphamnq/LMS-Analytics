@@ -263,7 +263,7 @@
 
             <!-- Navbar -->
             <header
-                class="h-16 bg-white/80 backdrop-blur-md shadow-sm flex items-center justify-between px-8 z-10 sticky top-0">
+                class="h-16 bg-white/80 backdrop-blur-md shadow-sm flex items-center justify-between px-8 z-[60] sticky top-0">
                 <h2 id="page-title" class="text-xl font-bold text-slate-800">Tổng quan</h2>
                 <div class="flex items-center space-x-4">
                     <!-- Global Filters in Header -->
@@ -895,7 +895,7 @@
                 </div>
 
                 <!-- 8. CÀI ĐẶT -->
-                <div id="tab-settings" class="tab-content hidden animate-fade-in relative z-20">
+                <div id="tab-settings" class="tab-content hidden animate-fade-in">
                     <div class="max-w-4xl mx-auto space-y-6 pb-20">
                         <!-- Gemini API Section -->
                         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -964,58 +964,6 @@
                                             class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 text-sm"
                                             value="587">
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-
-
-
-                        <!-- ML Model Management Section -->
-                        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                            <div class="p-6 border-b border-slate-100">
-                                <h3 class="font-semibold text-slate-800 flex items-center">
-                                    <i class="fa-solid fa-microchip text-rose-600 mr-2"></i>
-                                    Cấu hình Mô hình Máy học
-                                </h3>
-                                <p class="text-xs text-slate-500 mt-1">Chọn mô hình dự báo và theo dõi hiệu năng của hệ
-                                    thống.</p>
-                            </div>
-                            <div class="p-6">
-                                <div class="mb-6">
-                                    <label class="block text-sm font-medium text-slate-700 mb-2">Mô hình hoạt động
-                                        (Active Model)</label>
-                                    <select id="set-active-model"
-                                        class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 text-sm cursor-not-allowed opacity-70"
-                                        disabled>
-                                        <option value="Logistic Regression">Logistic Regression</option>
-                                    </select>
-                                    <p class="text-xs text-amber-600 mt-2 flex items-center">
-                                        <i class="fa-solid fa-circle-info mr-1.5"></i>
-                                        Hiện tại hệ thống chỉ tích hợp 1 mô hình. Các mô hình khác sẽ được bổ sung trong
-                                        phiên bản tiếp theo.
-                                    </p>
-                                </div>
-
-                                <div class="overflow-x-auto">
-                                    <table class="w-full text-left text-sm">
-                                        <thead>
-                                            <tr class="text-slate-500 border-b border-slate-50">
-                                                <th class="pb-3 font-medium">Mô hình</th>
-                                                <th class="pb-3 font-medium">Accuracy</th>
-                                                <th class="pb-3 font-medium">F1-Score</th>
-                                                <th class="pb-3 font-medium">Ngưỡng</th>
-                                                <th class="pb-3 font-medium hidden md:table-cell">Features</th>
-                                                <th class="pb-3 font-medium hidden md:table-cell">Mô tả</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="model-metrics-list">
-                                            <!-- Metrics loading via JS -->
-                                            <tr class="animate-pulse">
-                                                <td colspan="6" class="py-4 text-center text-slate-400">Đang tải thông
-                                                    số...</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
                                 </div>
                             </div>
                         </div>

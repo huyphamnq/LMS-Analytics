@@ -23,6 +23,15 @@ def get_required_columns():
             cols.append(f"{m}_w{w}")
     return cols
 
+def normalize_csv_header_name(name: str) -> str:
+    return (name or "").replace("\ufeff", "").strip().lower()
+
+def normalize_csv_reader_headers(csv_reader: csv.DictReader):
+    if csv_reader.fieldnames is None:
+        raise ValueError("File CSV không có dòng header")
+    csv_reader.fieldnames = [normalize_csv_header_name(col) for col in csv_reader.fieldnames]
+    return csv_reader.fieldnames
+
 class CSVRowSchema(BaseModel):
     student_id: str = Field(..., min_length=1)
     full_name: str = Field(..., min_length=1)
@@ -47,6 +56,7 @@ def _float(value) -> float:
         return 0.0
 
 def validate_csv_header(header: List[str]):
+    header = [normalize_csv_header_name(col) for col in (header or [])]
     required = get_required_columns()
     missing = [col for col in required if col not in header]
     if missing:
@@ -79,6 +89,7 @@ def check_existing_data(csv_file_path: str, subject_id: str = None) -> List[Dict
     unique_combos = set()
     with open(csv_file_path, mode='r', encoding='utf-8-sig') as file:
         csv_reader = csv.DictReader(file)
+        normalize_csv_reader_headers(csv_reader)
         for row in csv_reader:
             c_name = row.get('course', '').strip()
             cl_name = row.get('class', '').strip()
@@ -137,9 +148,10 @@ def import_csv_to_mongo(csv_file_path, subject_id: str = None):
 
     with open(csv_file_path, mode='r', encoding='utf-8-sig') as file:
         csv_reader = csv.DictReader(file)
+        normalized_header = normalize_csv_reader_headers(csv_reader)
         
         # Validate Header
-        validate_csv_header(csv_reader.fieldnames)
+        validate_csv_header(normalized_header)
 
         line_num = 1
         for row in csv_reader:
@@ -244,4 +256,3 @@ if __name__ == "__main__":
     template_path = os.path.join(os.path.dirname(__file__), 'datasets', 'template.csv')
     generate_csv_template(template_path)
     print(f"Template generated at: {template_path}")
-
