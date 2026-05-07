@@ -17,3 +17,12 @@ backend/venv/
 Thumbs.db
 
 *.log
+
+# Draw.io
+*.drawio
+
+# Documents
+*.pdf
+*.docx
+
+private/

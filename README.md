@@ -14,6 +14,35 @@ LMS-Analytics là hệ thống phân tích dữ liệu học tập chuyên sâu,
 - **Frontend**: JavaScript (Vanilla), TailwindCSS, Chart.js.
 - **AI Integration**: Google Gemini API.
 
+## Sơ đồ kiến trúc hệ thống
+
+```mermaid
+flowchart TB
+   U[Người dùng / Trình duyệt] --> F[Frontend tĩnh\nHTML + CSS + Vanilla JS]
+   F --> C[apiClient.js\nTự động gắn /v1 + Bearer token]
+   C --> A[FastAPI app.py\nRoutes: /v1/auth /v1/api /v1/settings]
+
+   A --> M[Middleware + Validation\nCORS, exception handler, schemas]
+   A --> S[Business Services\napi.py, auth.py, settings.py\nml_service.py, model_manager.py]
+   S --> D[(MongoDB Atlas)]
+   S --> L[ML Models\nbackend/models/subjects/*]
+   S --> G[Google Gemini API]
+
+   D --> R[Collections\nusers, student_logs, predictions, interventions]
+   L --> P[Inference / Risk Scoring]
+   G --> I[Giải thích rủi ro\n& gợi ý can thiệp]
+
+   P --> S
+   I --> S
+   S --> F
+```
+
+### Luồng chính
+- Frontend tĩnh gửi request qua `apiClient.js` và tự thêm tiền tố `/v1`.
+- FastAPI nhận request, đi qua CORS, validation và error handlers trước khi vào router.
+- Backend đọc/ghi MongoDB, chạy suy luận từ model theo subject, và gọi Gemini khi cần giải thích hoặc soạn can thiệp.
+- Kết quả trả về dashboard, phân tích sinh viên, cảnh báo sớm và quản lý mô hình.
+
 ## Hướng dẫn Vận hành Dự án
 
 ### 1. Cài đặt Môi trường

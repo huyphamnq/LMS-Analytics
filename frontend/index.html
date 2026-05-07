@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edu Analytics</title>
+    <title>LMS - Analytics</title>
 
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -67,7 +67,7 @@
                     <!-- Logo (Aligned with content) -->
                     <div class="flex items-center space-x-2 text-primary mb-8 lg:mb-12">
                         <i class="fa-solid fa-chart-line text-xl"></i>
-                        <span class="text-lg font-bold tracking-tight">EduAnalytics</span>
+                        <span class="text-lg font-bold tracking-tight">LMS Analytics</span>
                     </div>
 
                     <div id="auth-form-content" class="w-full">
@@ -202,7 +202,7 @@
         <aside class="w-64 bg-dark text-white flex flex-col shadow-xl z-20 transition-all duration-300">
             <div class="h-16 flex items-center justify-center border-b border-slate-700/50">
                 <i class="fa-solid fa-chart-pie text-secondary text-2xl mr-3"></i>
-                <h1 class="text-xl font-bold tracking-wide">EduAnalytics</h1>
+                <h1 class="text-xl font-bold tracking-wide">LMS Analytics</h1>
             </div>
 
             <nav class="flex-1 py-6 px-3 space-y-2 overflow-y-auto custom-scrollbar">
@@ -582,6 +582,15 @@
                                         </span>
                                     </div>
                                 </div>
+                                <!-- Threshold info banner for lecturers -->
+                                <div id="detail-threshold-info" class="hidden mb-4 -mt-2">
+                                    <div class="flex items-center gap-2 px-3.5 py-2 bg-amber-50 border border-amber-200/60 rounded-lg">
+                                        <div class="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                                            <i class="fa-solid fa-scale-balanced text-amber-500 text-[9px]"></i>
+                                        </div>
+                                        <span id="detail-threshold-text" class="text-[11px] text-amber-700 font-medium"></span>
+                                    </div>
+                                </div>
 
                                 <!-- AI EXPLANATION BOX -->
                                 <div id="ai-explanation-box"
@@ -752,7 +761,8 @@
                             </div>
                             <div class="relative flex justify-between items-start">
                                 <div>
-                                    <p class="text-xs font-bold text-red-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                                    <p
+                                        class="text-xs font-bold text-red-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
                                         <i class="fa-solid fa-triangle-exclamation"></i> Nghi vấn gian lận
                                     </p>
                                     <h3 class="text-4xl font-bold text-red-600" id="anomaly-stat-cheat">0</h3>
@@ -772,7 +782,8 @@
                             </div>
                             <div class="relative flex justify-between items-start">
                                 <div>
-                                    <p class="text-xs font-bold text-orange-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                                    <p
+                                        class="text-xs font-bold text-orange-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
                                         <i class="fa-solid fa-fire-flame-curved"></i> Nguy cơ kiệt sức
                                     </p>
                                     <h3 class="text-4xl font-bold text-orange-600" id="anomaly-stat-burnout">0</h3>

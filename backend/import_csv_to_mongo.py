@@ -2,6 +2,7 @@ import csv
 from datetime import datetime, timezone
 from database import db, student_logs
 import os
+from pymongo import UpdateOne
 from pydantic import BaseModel, Field, EmailStr, validator
 from typing import List, Optional, Dict, Any
 
@@ -210,23 +211,18 @@ def import_csv_to_mongo(csv_file_path, subject_id: str = None):
                 # Re-raise to stop process and inform user
                 raise ValueError(str(e))
 
-    # UPSERT strategy: Check for existing student + course combo
+    # UPSERT strategy: bulk_write thay vì N lần update_one → chỉ 1 round-trip tới MongoDB
     if documentsToInsert:
-        print(f"Upserting {len(documentsToInsert)} records into MongoDB...")
-        updated_count = 0
-        inserted_count = 0
-        
+        print(f"Bulk-upserting {len(documentsToInsert)} records into MongoDB...")
+
+        bulk_ops = []
         for doc in documentsToInsert:
-            # Use student_id, course_name, subject_id AND class_name as the unique filter
             filter_query = {
                 "student_id":  doc["student_id"],
                 "course_name": doc["course_name"],
                 "subject_id":  doc["subject_id"],
                 "class_name":  doc["class_name"]
             }
-            
-            # Use $set to update existing or insert new
-            # We don't overwrite created_at if it exists
             update_op = {
                 "$set": {
                     "full_name":   doc["full_name"],
@@ -240,16 +236,19 @@ def import_csv_to_mongo(csv_file_path, subject_id: str = None):
                     "created_at":  doc["created_at"]
                 }
             }
-            
-            res = student_logs.update_one(filter_query, update_op, upsert=True)
-            if res.matched_count > 0:
-                updated_count += 1
-            else:
-                inserted_count += 1
-                
-        print(f"Successfully processed records: {inserted_count} inserted, {updated_count} updated.")
+            bulk_ops.append(UpdateOne(filter_query, update_op, upsert=True))
+
+        result = student_logs.bulk_write(bulk_ops, ordered=False)
+        print(
+            f"Bulk write done: {result.upserted_count} inserted, "
+            f"{result.modified_count} updated."
+        )
+
+        # Trả về danh sách student_id vừa xử lý để caller chỉ predict đúng batch này
+        return [doc["student_id"] for doc in documentsToInsert]
     else:
         print("No valid records found to insert.")
+        return []
 
 if __name__ == "__main__":
     # Test template generation

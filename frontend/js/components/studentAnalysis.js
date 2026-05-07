@@ -208,16 +208,27 @@ async function viewStudentDetail(studentId, courseName) {
 
         if (latestPred && latestPred.risk_label === "Nguy cơ") {
             badgeEl.className = "px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-semibold border border-red-200";
-            badgeEl.innerText = `Nguy cơ (${(latestPred.risk_probability * 100).toFixed(0)}%)`;
+            badgeEl.innerText = `Nguy cơ (${(latestPred.risk_probability * 100).toFixed(1)}%)`;
         } else if (latestPred && latestPred.risk_label === "An toàn") {
             badgeEl.className = "px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-semibold border border-emerald-200";
-            badgeEl.innerText = `An toàn (${(latestPred.risk_probability * 100).toFixed(0)}%)`;
+            badgeEl.innerText = `An toàn (${(latestPred.risk_probability * 100).toFixed(1)}%)`;
         } else if (latestPred) {
             badgeEl.className = "px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-semibold border border-amber-200";
             badgeEl.innerText = latestPred.risk_label || "Lỗi dự đoán";
         } else {
             badgeEl.className = "px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-sm font-semibold border border-slate-200";
             badgeEl.innerText = "Chưa có dự đoán";
+        }
+
+        // Hiển thị ghi chú ngưỡng cho giảng viên
+        const thresholdInfoEl = document.getElementById('detail-threshold-info');
+        const thresholdTextEl = document.getElementById('detail-threshold-text');
+        if (thresholdInfoEl && thresholdTextEl && latestPred && latestPred.threshold !== undefined && latestPred.threshold !== null) {
+            const thresholdPct = (Number(latestPred.threshold) * 100).toFixed(0);
+            thresholdTextEl.innerHTML = `Mô hình AI phân loại: xác suất rủi ro <strong>≥ ${thresholdPct}%</strong> → <span class="text-red-600 font-bold">Nguy cơ</span> · <strong>&lt; ${thresholdPct}%</strong> → <span class="text-emerald-600 font-bold">An toàn</span>`;
+            thresholdInfoEl.classList.remove('hidden');
+        } else if (thresholdInfoEl) {
+            thresholdInfoEl.classList.add('hidden');
         }
 
         // Update behavioral stats grid (dùng tuần mới nhất)

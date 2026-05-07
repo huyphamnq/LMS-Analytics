@@ -40,7 +40,7 @@ async function loadTopRiskStudents() {
 
     listContainer.innerHTML = '';
     students.forEach(student => {
-        const prob = Math.round(student.risk_probability * 100);
+        const prob = (student.risk_probability * 100).toFixed(1);
         let probClass = 'text-rose-600 bg-rose-50';
         if (prob < 70) probClass = 'text-amber-600 bg-amber-50';
 
@@ -211,11 +211,11 @@ async function openRiskListModal(label) {
     students.forEach(student => {
         let probBadge = '';
         if (student.risk_probability < 0.5) {
-            probBadge = `<span class="bg-emerald-100 text-emerald-700 font-semibold px-2 py-1 rounded-md text-xs">${Math.round(student.risk_probability * 100)}%</span>`;
+            probBadge = `<span class="bg-emerald-100 text-emerald-700 font-semibold px-2 py-1 rounded-md text-xs">${(student.risk_probability * 100).toFixed(1)}%</span>`;
         } else if (student.risk_probability < 0.7) {
-            probBadge = `<span class="bg-amber-100 text-amber-700 font-semibold px-2 py-1 rounded-md text-xs">${Math.round(student.risk_probability * 100)}%</span>`;
+            probBadge = `<span class="bg-amber-100 text-amber-700 font-semibold px-2 py-1 rounded-md text-xs">${(student.risk_probability * 100).toFixed(1)}%</span>`;
         } else {
-            probBadge = `<span class="bg-rose-100 text-rose-700 font-semibold px-2 py-1 rounded-md text-xs">${Math.round(student.risk_probability * 100)}%</span>`;
+            probBadge = `<span class="bg-rose-100 text-rose-700 font-semibold px-2 py-1 rounded-md text-xs">${(student.risk_probability * 100).toFixed(1)}%</span>`;
         }
 
         let effortBadge = '';

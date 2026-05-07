@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, BackgroundTasks
 from routes.auth import get_current_user
 from database import student_logs, predictions, interventions
 from ml_service import calculate_effort_score, predict_risk_for_subject
@@ -16,17 +16,21 @@ from import_csv_to_mongo import import_csv_to_mongo, check_existing_data
 router = APIRouter()
 
 
-def _run_sync_predictions():
+def _run_sync_predictions(student_ids: list = None):
     """
-    Chạy dự đoán cho toàn bộ sinh viên trong student_logs và lưu vào predictions.
-    Sử dụng subject-based models (một model cho mỗi môn).
-    - Yêu cầu: student record phải có 'subject_id' hoặc 'course_name' để xác định model.
-    - Nếu không có subject_id, sẽ bỏ qua sinh viên đó.
+    Chạy dự đoán cho sinh viên trong student_logs và lưu vào predictions.
+
+    Args:
+        student_ids: Nếu truyền vào, chỉ predict cho các student_id này (batch vừa upload).
+                     Nếu None → predict toàn bộ DB (dùng khi re-sync thủ công).
     """
     print("\n🔄 [_run_sync_predictions] Bắt đầu chạy dự đoán tự động...")
-    students = list(student_logs.find())
-    print(f"📊 Tổng sinh viên trong student_logs: {len(students)}")
-    
+
+    query = {"student_id": {"$in": student_ids}} if student_ids else {}
+    students = list(student_logs.find(query))
+    label = f"{len(student_ids)} sv vừa upload" if student_ids else "toàn bộ DB"
+    print(f"📊 Cần dự đoán: {len(students)} sinh viên ({label})")
+
     if not students:
         print("❌ Không có sinh viên để dự đoán!")
         return 0
@@ -34,64 +38,52 @@ def _run_sync_predictions():
     docs = []
     skipped = 0
     errors = 0
-    
+    bulk_ops = []
+
     for stu in students:
         student_id = stu.get('student_id', '?')
-        
-        # Kiểm tra weekly_data
+
         if "weekly_data" not in stu or not stu["weekly_data"]:
             print(f"⏭️  [{student_id}] Bỏ qua: không có weekly_data")
             skipped += 1
             continue
-        
-        # Lấy subject_id từ course_name (nếu không có)
+
         subject_id = stu.get("subject_id")
         course_name = stu.get("course_name", "N/A")
-        
+
         if not subject_id:
-            # Fallback: tạo subject_id từ course_name
             if course_name and course_name != "N/A":
                 subject_id = course_name.lower().replace(" ", "_")
-                print(f"⚠️  [{student_id}] Không có subject_id, dùng fallback: {subject_id} (từ '{course_name}')")
+                print(f"⚠️  [{student_id}] Fallback subject_id: {subject_id}")
             else:
                 print(f"❌ [{student_id}] Bỏ qua: không có subject_id hoặc course_name")
                 skipped += 1
                 continue
-        
-        print(f"🎯 [{student_id}] Dự đoán cho môn: {subject_id}, khóa học: {course_name}")
-        
+
         weekly_data = stu["weekly_data"]
         try:
-            # Dự đoán rủi ro
             result = predict_risk_for_subject(subject_id, weekly_data)
-            
-            # Kiểm tra nếu model không tồn tại
+
             if "error" in result:
-                print(f"  ❌ Lỗi dự đoán: {result['error']}")
+                print(f"  ❌ [{student_id}] Lỗi dự đoán: {result['error']}")
                 errors += 1
-                # Thay vì bỏ qua, lưu trạng thái lỗi để UI có thể hiển thị
                 result = {
                     "risk_probability": 0.0,
                     "risk_label": "Lỗi model (Chưa có dự đoán)",
                     "model_version": "N/A",
                     "threshold": 0.5
                 }
-            
-            # Tính effort_score
+
             effort_score = calculate_effort_score(weekly_data)
             week_nums = [w.get("week") for w in weekly_data if w.get("week")]
             latest_week = max(week_nums) if week_nums else 1
-            
-            print(f"  ✅ Dự đoán: {result.get('risk_label', 'N/A')} (xác suất: {result.get('risk_probability', 0):.2%})")
-            
-            # Upsert into predictions collection
+
             filter_query = {
-                "student_id":   student_id,
-                "course_name":  course_name,
-                "subject_id":   subject_id,
-                "class_name":   stu.get("class_name", "N/A")
+                "student_id":  student_id,
+                "course_name": course_name,
+                "subject_id":  subject_id,
+                "class_name":  stu.get("class_name", "N/A")
             }
-            
             pred_doc = {
                 "student_id":       student_id,
                 "course_name":      course_name,
@@ -105,16 +97,21 @@ def _run_sync_predictions():
                 "threshold":        result.get("threshold", 0.5),
                 "updated_at":       datetime.now()
             }
-            
-            predictions.update_one(filter_query, {"$set": pred_doc}, upsert=True)
+            from pymongo import UpdateOne as _UpdateOne
+            bulk_ops.append(_UpdateOne(filter_query, {"$set": pred_doc}, upsert=True))
             docs.append(pred_doc)
-            
+
         except Exception as e:
-            print(f"  ❌ Exception: {type(e).__name__}: {e}")
+            print(f"  ❌ [{student_id}] Exception: {type(e).__name__}: {e}")
             errors += 1
 
-    print(f"\n📈 Kết quả dự đoán: {len(docs)} thành công, {skipped} bỏ qua, {errors} lỗi")
+    if bulk_ops:
+        predictions.bulk_write(bulk_ops, ordered=False)
+        print(f"✅ Bulk write {len(bulk_ops)} predictions xong.")
+
+    print(f"\n📈 Kết quả: {len(docs)} thành công, {skipped} bỏ qua, {errors} lỗi")
     return len(docs)
+
 
 # Schema For AI Request
 class AIExplainRequest(BaseModel):
@@ -138,18 +135,18 @@ class InterventionCreate(BaseModel):
 # 9 metrics đúng theo model Random Forest
 class BehaviorData(BaseModel):
     student_id: str
-    subject_id: str                         # ⚠️ REQUIRED: ID của môn học
-    week: int
-    active_days: int
-    login_count: int
-    video_views: int
-    document_reads: int
-    discussion: int
-    assignment_duration_mins: float = 0.0   # Thời gian làm bài (phút)
-    ontime_margin: float = 0.0              # Biên nộp đúng hạn (+ = sớm, - = trễ)
-    days_since_last_login: int = 0          # Số ngày kể từ lần đăng nhập cuối
-    session_duration: float = 0.0          # Thời lượng phiên học (phút)
-    weekly_score: Optional[float] = None   # Điểm tuần (chỉ lưu, không dùng làm feature)
+    subject_id: str
+    week: int = 1
+    active_days: int = 0
+    login_count: int = 0
+    video_views: int = 0
+    document_reads: int = 0
+    discussion: int = 0
+    assignment_duration_mins: float = 0.0
+    ontime_margin: float = 0.0
+    days_since_last_login: int = 0
+    session_duration: float = 0.0
+    weekly_score: Optional[float] = None
 
 from bson import ObjectId
 
@@ -314,13 +311,22 @@ def get_dashboard_summary(course: Optional[str] = None, class_name: Optional[str
     if course: student_query["course_name"] = course
     if class_name: student_query["class_name"] = class_name
     
+    # Count enrollments: each (student_id, course_name) pair = 1 enrollment
+    count_pipeline = []
+    if student_query:
+        count_pipeline.append({"$match": student_query})
+    count_pipeline.extend([
+        {"$group": {"_id": {"student_id": "$student_id", "course_name": "$course_name"}}},
+        {"$count": "total"}
+    ])
+    count_result = list(student_logs.aggregate(count_pipeline))
+    total_students = count_result[0]["total"] if count_result else 0
+
+    # Get student_ids for filtering predictions
     student_ids = None
     if student_query:
         matched_students = list(student_logs.find(student_query, {"student_id": 1}))
         student_ids = [s["student_id"] for s in matched_students]
-        total_students = len(student_ids)
-    else:
-        total_students = student_logs.count_documents({})
         
     pred_match = {}
     if student_ids is not None:
@@ -328,13 +334,14 @@ def get_dashboard_summary(course: Optional[str] = None, class_name: Optional[str
     if course:
         pred_match["course_name"] = course
         
-    pipeline = [{"$sort": {"student_id": 1, "week": -1}}]
+    # Group by (student_id, course_name) to match enrollment counting
+    pipeline = [{"$sort": {"student_id": 1, "course_name": 1, "week": -1}}]
     if pred_match:
         pipeline.insert(0, {"$match": pred_match})
         
     pipeline.append({
         "$group": {
-            "_id": "$student_id",
+            "_id": {"student_id": "$student_id", "course_name": {"$ifNull": ["$course_name", ""]}},
             "risk_label": {"$first": "$risk_label"},
             "risk_probability": {"$first": "$risk_probability"},
             "model_probs": {"$first": "$model_probs"}
@@ -985,6 +992,7 @@ def download_template(current_user: dict = Depends(get_current_user)):
 # 10. Upload CSV File
 @router.post("/upload-csv")
 def upload_csv_file(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     subject_id: Optional[str] = Form(None),
     overwrite: bool = Form(False),
@@ -1034,10 +1042,10 @@ def upload_csv_file(
                 )
 
         try:
-            # Pass subject_id to import function
             print(f"   📥 Bắt đầu import vào MongoDB...")
-            import_csv_to_mongo(file_path, subject_id=subject_id)
-            print(f"   ✅ Import thành công!")
+            # import_csv_to_mongo giờ trả về list student_id vừa upsert
+            upserted_ids = import_csv_to_mongo(file_path, subject_id=subject_id)
+            print(f"   ✅ Import thành công {len(upserted_ids)} sinh viên!")
             
         except ValueError as ve:
             # Lỗi validation (thiếu cột, sai dữ liệu)
@@ -1049,22 +1057,20 @@ def upload_csv_file(
             os.remove(file_path)
             print(f"   🗑️ Temp file deleted")
 
-        # Tự động chạy dự đoán ML cho toàn bộ sinh viên vừa import
-        print(f"   🤖 Chạy auto-predict...")
-        try:
-            synced_count = _run_sync_predictions()
-        except Exception as sync_err:
-            print(f"   ❌ Sync predictions error after upload: {sync_err}")
-            import traceback
-            traceback.print_exc()
-            synced_count = 0
+        # Chạy predict nền — chỉ cho batch vừa upload, API trả về ngay
+        print(f"   🤖 Đưa auto-predict vào background (batch: {len(upserted_ids)} sv)...")
+        background_tasks.add_task(_run_sync_predictions, upserted_ids)
 
-        result_msg = f"Dữ liệu đã được nhập thành công và đã dự đoán cho {synced_count} sinh viên!"
+        result_msg = (
+            f"Dữ liệu đã được nhập thành công cho {len(upserted_ids)} sinh viên! "
+            f"Dự đoán ML đang chạy nền..."
+        )
         print(f"   ✅ {result_msg}\n")
-        
+
         return {
             "message": result_msg,
-            "synced": synced_count
+            "synced": len(upserted_ids),
+            "status": "predicting_in_background"
         }
     except HTTPException:
         raise

@@ -1,0 +1,11 @@
+{
+  "subject_id": "CPP101",
+  "subject_name": "Lập trình C++",
+  "version": "1.0",
+  "accuracy": 0.98,
+  "threshold": 0.4,
+  "trained_date": "2026-04-30T12:12:04.693960",
+  "model_file": "rf_student_model.pkl",
+  "scaler_file": "rf_scaler_student.pkl",
+  "config_file": "model_config.pkl"
+}
