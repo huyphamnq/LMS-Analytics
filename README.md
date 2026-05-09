@@ -45,35 +45,27 @@ flowchart TB
 
 ## Hướng dẫn Vận hành Dự án
 
-### 1. Cài đặt Môi trường
-Hệ thống yêu cầu Python phiên bản 3.9 trở lên. Để cài đặt các thư viện phụ thuộc, vui lòng thực hiện lệnh sau trong thư mục `backend`:
+Để xem hướng dẫn chi tiết từng bước về cách cài đặt, cấu hình môi trường (.env), nhập dữ liệu và xử lý các lỗi thường gặp, vui lòng tham khảo tài liệu: 
+👉 **[HƯỚNG DẪN CÀI ĐẶT VÀ SỬ DỤNG HỆ THỐNG](HUONG_DAN_CAI_DAT_VA_SU_DUNG.md)**
 
-```bash
-cd backend
-pip install -r requirements.txt
-```
+### Chạy nhanh (Quickstart cho Developer)
 
-### 2. Cấu hình Mô hình Học máy
-Trong trường hợp thư mục `backend/models/` chưa chứa các tệp tin lưu trữ mô hình (.pkl), cần thực thi lệnh sau để khởi tạo:
-```bash
-python generate_mock_models.py
-```
-
-### 3. Khởi chạy Backend Server
-Khởi chạy dịch vụ API tại cổng mặc định (8000):
-```bash
-python app.py
-```
-Tài liệu hướng dẫn API chi tiết (Swagger UI) có thể truy cập tại: `http://127.0.0.1:8000/docs`
-
-### 4. Khởi chạy Giao diện Người dùng (Frontend)
-Frontend bao gồm các tệp tin tĩnh. Để vận hành, có thể sử dụng máy chủ HTTP tích hợp của Python tại thư mục gốc của dự án:
-1. Mở terminal mới tại thư mục gốc.
-2. Thực thi lệnh:
+1. **Cài đặt & Khởi chạy Backend:**
    ```bash
+   cd backend
+   pip install -r requirements.txt
+   python generate_mock_models.py # Khởi tạo model nếu chưa có
+   python app.py
+   ```
+   *API Docs: `http://127.0.0.1:8000/docs`*
+
+2. **Khởi chạy Frontend:**
+   ```bash
+   # Mở terminal mới
+   cd frontend
    python -m http.server 8080
    ```
-3. Truy cập địa chỉ: `http://localhost:8080`
+   *Truy cập: `http://localhost:8080`*
 
 ## Lưu ý quan trọng
 - **Quản lý Dữ liệu**: Hệ thống hiện đang kết nối trực tiếp với MongoDB Atlas. Vui lòng cẩn trọng khi thực thi các tác vụ tác động đến cấu trúc dữ liệu.
