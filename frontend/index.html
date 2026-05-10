@@ -584,11 +584,14 @@
                                 </div>
                                 <!-- Threshold info banner for lecturers -->
                                 <div id="detail-threshold-info" class="hidden mb-4 -mt-2">
-                                    <div class="flex items-center gap-2 px-3.5 py-2 bg-amber-50 border border-amber-200/60 rounded-lg">
-                                        <div class="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                                    <div
+                                        class="flex items-center gap-2 px-3.5 py-2 bg-amber-50 border border-amber-200/60 rounded-lg">
+                                        <div
+                                            class="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
                                             <i class="fa-solid fa-scale-balanced text-amber-500 text-[9px]"></i>
                                         </div>
-                                        <span id="detail-threshold-text" class="text-[11px] text-amber-700 font-medium"></span>
+                                        <span id="detail-threshold-text"
+                                            class="text-[11px] text-amber-700 font-medium"></span>
                                     </div>
                                 </div>
 
@@ -1042,10 +1045,17 @@
                             class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 text-sm custom-scrollbar leading-relaxed"
                             placeholder="Nội dung đã trao đổi hoặc nhắc nhở..."></textarea>
                     </div>
+                    <div class="mb-6 flex items-center" id="send-email-container">
+                        <input type="checkbox" id="intervention-send-email"
+                            class="w-4 h-4 text-primary bg-slate-50 border-slate-300 rounded focus:ring-primary">
+                        <label for="intervention-send-email"
+                            class="ml-2 text-sm font-medium text-slate-700 select-none cursor-pointer">Đồng thời gửi thư
+                            này vào email của sinh viên</label>
+                    </div>
                     <div class="flex justify-end space-x-3">
                         <button type="button" onclick="closeInterventionModal()"
                             class="px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-sm font-medium transition-colors">Hủy</button>
-                        <button type="submit"
+                        <button type="submit" id="btn-submit-intervention"
                             class="px-4 py-2 bg-primary hover:bg-secondary text-white rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center">
                             <i class="fa-solid fa-save mr-2"></i> Lưu can thiệp
                         </button>

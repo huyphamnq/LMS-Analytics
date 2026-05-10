@@ -100,8 +100,14 @@ async function submitIntervention(e) {
     
     const type = document.getElementById('intervention-type').value;
     const note = document.getElementById('intervention-note').value;
+    const sendEmail = document.getElementById('intervention-send-email').checked;
     
     if(!window.selectedStudentId) return;
+    
+    const submitBtn = document.getElementById('btn-submit-intervention');
+    const originalBtnText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang xử lý...';
+    submitBtn.disabled = true;
     
     try {
         const res = await apiFetch('/intervention', {
@@ -110,7 +116,8 @@ async function submitIntervention(e) {
                 student_id: window.selectedStudentId,
                 course_name: window.selectedCourseName || '',
                 intervention_type: type,
-                note: note
+                note: note,
+                send_email: sendEmail
             })
         });
         
@@ -119,10 +126,33 @@ async function submitIntervention(e) {
             closeInterventionModal();
             loadInterventions(); // Reload table
         } else {
-            UIHelpers.showNotification('Lỗi khi lưu can thiệp!', 'error');
+            let errorMsg = 'Lỗi khi lưu can thiệp!';
+            try {
+                const errData = await res.json();
+                if(errData.detail) errorMsg = errData.detail;
+            } catch(e) {}
+            UIHelpers.showNotification(errorMsg, 'error');
         }
     } catch (err) {
         console.error(err);
         UIHelpers.showNotification('Lỗi kết nối máy chủ!', 'error');
+    } finally {
+        submitBtn.innerHTML = originalBtnText;
+        submitBtn.disabled = false;
     }
 }
+
+// Lắng nghe sự kiện đổi loại can thiệp
+document.addEventListener('DOMContentLoaded', () => {
+    const typeSelect = document.getElementById('intervention-type');
+    const emailCheckbox = document.getElementById('intervention-send-email');
+    if(typeSelect && emailCheckbox) {
+        typeSelect.addEventListener('change', (e) => {
+            if(e.target.value === 'Nhắc nhở qua Email') {
+                emailCheckbox.checked = true;
+            } else {
+                emailCheckbox.checked = false;
+            }
+        });
+    }
+});

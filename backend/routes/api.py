@@ -130,6 +130,7 @@ class InterventionCreate(BaseModel):
     course_name: str
     intervention_type: str
     note: str
+    send_email: bool = False
 
 # Schema for incoming learning behavior data mapping
 # 9 metrics đúng theo model Random Forest
@@ -762,15 +763,57 @@ def get_integrity_data(course: Optional[str] = None, class_name: Optional[str] =
 
     return scatter_data
 
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+def send_intervention_email(smtp_settings, recipient_email, subject, body):
+    sender = smtp_settings.get("emailSender")
+    pwd = smtp_settings.get("emailPass")
+    host = smtp_settings.get("emailHost")
+    port = smtp_settings.get("emailPort")
+    
+    if not sender or not pwd or not host:
+        raise Exception("Chưa cấu hình đầy đủ thông tin SMTP trong phần Cài đặt.")
+        
+    try:
+        port_num = int(port) if port else 587
+    except ValueError:
+        port_num = 587
+
+    msg = MIMEMultipart()
+    msg['From'] = sender
+    msg['To'] = recipient_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain', 'utf-8'))
+
+    server = smtplib.SMTP(host, port_num)
+    server.starttls()
+    server.login(sender, pwd)
+    server.send_message(msg)
+    server.quit()
+
 # 7. Quản lý can thiệp
 @router.post("/intervention")
 def add_intervention(inv: InterventionCreate, current_user: dict = Depends(get_current_user)):
+    if inv.send_email:
+        student = student_logs.find_one({"student_id": inv.student_id})
+        if not student or not student.get("email"):
+            raise HTTPException(status_code=400, detail="Không tìm thấy thông tin email của sinh viên.")
+            
+        try:
+            subject = f"Thông báo từ giảng viên phụ trách môn {inv.course_name}"
+            send_intervention_email(current_user, student["email"], subject, inv.note)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Lỗi khi gửi email: {str(e)}")
+
     doc = {
         "student_id": inv.student_id,
         "course_name": inv.course_name,
         "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "intervention_type": inv.intervention_type,
         "note": inv.note,
+        "send_email": inv.send_email,
         "created_by": current_user["email"]
     }
     result = interventions.insert_one(doc)

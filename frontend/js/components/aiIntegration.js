@@ -17,10 +17,19 @@ function getApiKey() {
 // Hàm đơn giản để parse Markdown (in đậm, xuống dòng) sang HTML
 function parseMarkdownToHTML(text) {
     if (!text) return "";
-    let html = text.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-gray-800">$1</strong>'); // In đậm
-    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>'); // In nghiêng
+    let html = text.replace(/\*\*([\s\S]*?)\*\*/g, '<strong class="font-bold text-gray-800">$1</strong>'); // In đậm
+    html = html.replace(/\*([\s\S]*?)\*/g, '<em>$1</em>'); // In nghiêng
     html = html.replace(/\n/g, '<br>'); // Xuống dòng
     return html;
+}
+
+// Hàm xóa cú pháp Markdown để hiển thị text thuần (cho textarea)
+function stripMarkdown(text) {
+    if (!text) return "";
+    let clean = text.replace(/\*\*([\s\S]*?)\*\*/g, '$1'); // Remove bold
+    clean = clean.replace(/\*([\s\S]*?)\*/g, '$1'); // Remove italic
+    clean = clean.replace(/#{1,6}\s?([^\n]+)/g, '$1'); // Remove headers
+    return clean;
 }
 
 async function explainWithAI() {
@@ -106,7 +115,7 @@ async function draftEmailWithAI() {
         
         const result = await res.json();
         if (res && res.ok) {
-            noteEl.value = result.email_draft;
+            noteEl.value = stripMarkdown(result.email_draft);
         } else {
             UIHelpers.showNotification("Lỗi khi gọi AI: " + (result.detail || "Không xác định"), "error");
         }
