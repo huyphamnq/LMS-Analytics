@@ -1,4 +1,3 @@
-# Vercel configuration for static HTML/CSS/JS frontend
 {
   "version": 2,
   "builds": [
