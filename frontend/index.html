@@ -45,27 +45,27 @@
     <!-- App Configuration: Thay RENDER_URL bằng URL thực sau khi deploy backend lên Render -->
     <script>
         window.APP_CONFIG = {
-            API_URL: 'REPLACE_WITH_RENDER_URL' // Ví dụ: 'https://lms-analytics-api.onrender.com'
+            API_URL: 'https://lms-analytics.onrender.com'
         };
         // Fallback về localhost nếu chưa cấu hình
-        if (!window.APP_CONFIG.API_URL || window.APP_CONFIG.API_URL === 'REPLACE_WITH_RENDER_URL') {
+        if (!window.APP_CONFIG.API_URL || window.APP_CONFIG.API_URL === 'https://lms-analytics.onrender.com') {
             window.APP_CONFIG.API_URL = 'http://127.0.0.1:8000';
         }
     </script>
     <script>
-            // Early auth check to prevent UI flashing
-            (function () {
-                const token = localStorage.getItem('token');
-                const user = localStorage.getItem('user');
-                const hasAuth = token && token !== 'null' && token !== 'undefined' &&
-                    user && user !== 'null' && user !== 'undefined';
+        // Early auth check to prevent UI flashing
+        (function () {
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+            const hasAuth = token && token !== 'null' && token !== 'undefined' &&
+                user && user !== 'null' && user !== 'undefined';
 
-                if (hasAuth) {
-                    document.body.classList.add('is-logged-in');
-                } else {
-                    document.body.classList.add('is-not-logged-in');
-                }
-            })();
+            if (hasAuth) {
+                document.body.classList.add('is-logged-in');
+            } else {
+                document.body.classList.add('is-not-logged-in');
+            }
+        })();
     </script>
 
     <!-- Sellora-Style Auth Overlay (Exact Full Screen - No Scroll) -->
@@ -107,7 +107,8 @@
                             </div>
                             <div class="flex items-center justify-between text-xs py-1">
                                 <label class="flex items-center text-slate-600 cursor-pointer">
-                                    <input type="checkbox" id="login-remember" class="mr-2 rounded border-slate-300 cursor-pointer"> Ghi nhớ đăng
+                                    <input type="checkbox" id="login-remember"
+                                        class="mr-2 rounded border-slate-300 cursor-pointer"> Ghi nhớ đăng
                                     nhập
                                 </label>
                                 <a href="#" class="text-primary font-bold hover:underline">Quên mật khẩu?</a>
@@ -173,7 +174,7 @@
                     <h2 class="text-4xl font-bold leading-tight mb-4">Quản lý sinh viên và hiệu suất một cách dễ
                         dàng.</h2>
                     <p class="text-white/80 text-lg mb-12">Đăng nhập để truy cập trang quản trị và xem các phân
-                        tích chi tiết thời gian thực.</p>
+                        tích chi tiết.</p>
 
                     <!-- Decorative Dashboard Mockup Placeholder -->
                     <div
