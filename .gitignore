@@ -26,3 +26,6 @@ Thumbs.db
 *.docx
 
 private/
+
+# Datasets gốc (to, không cần push lên git)
+backend/datasets/
