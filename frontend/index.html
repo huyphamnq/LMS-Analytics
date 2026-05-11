@@ -42,15 +42,14 @@
 </head>
 
 <body class="bg-slate-50 text-slate-800 font-sans">
-    <!-- App Configuration: Thay RENDER_URL bằng URL thực sau khi deploy backend lên Render -->
+    <!-- App Configuration: Backend API URL -->
     <script>
         window.APP_CONFIG = {
-            API_URL: 'https://lms-analytics.onrender.com'
+            // Tự động dùng localhost API nếu đang chạy web ở local, ngược lại dùng Render API
+            API_URL: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                ? 'http://127.0.0.1:8000'
+                : 'https://lms-analytics.onrender.com'
         };
-        // Fallback về localhost nếu chưa cấu hình
-        if (!window.APP_CONFIG.API_URL || window.APP_CONFIG.API_URL === 'https://lms-analytics.onrender.com') {
-            window.APP_CONFIG.API_URL = 'http://127.0.0.1:8000';
-        }
     </script>
     <script>
         // Early auth check to prevent UI flashing
