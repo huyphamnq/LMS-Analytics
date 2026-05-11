@@ -1,4 +1,7 @@
-const API_URL = 'http://127.0.0.1:8000';
+// Ưu tiên: window.APP_CONFIG (production) > localhost (development)
+const API_URL = (window.APP_CONFIG && window.APP_CONFIG.API_URL)
+    ? window.APP_CONFIG.API_URL
+    : 'http://127.0.0.1:8000';
 const API_VERSION = 'v1';
 
 async function apiFetch(endpoint, options = {}) {

@@ -126,6 +126,14 @@ async function handleAuthSubmit(event, type) {
                 localStorage.setItem('user', JSON.stringify(data.user));
                 window.currentUser = data.user;
                 
+                // Handle "Remember Me"
+                const rememberCheckbox = document.getElementById('login-remember');
+                if (rememberCheckbox && rememberCheckbox.checked) {
+                    localStorage.setItem('rememberedEmail', email);
+                } else {
+                    localStorage.removeItem('rememberedEmail');
+                }
+                
                 // Use location.reload() to ensure all components and charts are 
                 // cleanly initialized with the new token, identical to F5 behavior.
                 location.reload();
@@ -167,7 +175,42 @@ window.addEventListener('click', function(e) {
     }
 });
 
+function initAuthFeatures() {
+    // Password Toggle Logic
+    const toggleButtons = [
+        { btnId: 'toggle-password', inputId: 'login-password' },
+        { btnId: 'toggle-register-password', inputId: 'register-password' }
+    ];
+
+    toggleButtons.forEach(({ btnId, inputId }) => {
+        const btn = document.getElementById(btnId);
+        const input = document.getElementById(inputId);
+
+        if (btn && input) {
+            btn.addEventListener('click', () => {
+                const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+                input.setAttribute('type', type);
+                
+                // Toggle icon
+                btn.classList.toggle('fa-eye');
+                btn.classList.toggle('fa-eye-slash');
+            });
+        }
+    });
+
+    // Remember Me Pre-fill
+    const rememberedEmail = localStorage.getItem('rememberedEmail');
+    if (rememberedEmail) {
+        const emailInput = document.getElementById('login-email');
+        const rememberCheckbox = document.getElementById('login-remember');
+        
+        if (emailInput) emailInput.value = rememberedEmail;
+        if (rememberCheckbox) rememberCheckbox.checked = true;
+    }
+}
+
 // Chạy check auth khi document ready
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
+    initAuthFeatures();
 });
