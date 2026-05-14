@@ -763,35 +763,41 @@ def get_integrity_data(course: Optional[str] = None, class_name: Optional[str] =
 
     return scatter_data
 
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
 
 def send_intervention_email(smtp_settings, recipient_email, subject, body):
     sender = smtp_settings.get("emailSender")
-    pwd = smtp_settings.get("emailPass")
-    host = smtp_settings.get("emailHost")
-    port = smtp_settings.get("emailPort")
     
-    if not sender or not pwd or not host:
-        raise Exception("Chưa cấu hình đầy đủ thông tin SMTP trong phần Cài đặt.")
+    if not sender:
+        raise Exception("Vui lòng nhập Email người gửi trong phần Cài đặt (Email Sender).")
         
+    import os
+    
+    # Lấy API Key từ ô Mật khẩu trong Cài đặt, hoặc từ biến môi trường của server
+    api_key = smtp_settings.get("emailPass") or os.getenv("BREVO_API_KEY")
+    if not api_key:
+        raise Exception("Vui lòng dán Brevo API Key vào ô Mật khẩu trong phần Cài đặt.")
+    url = "https://api.brevo.com/v3/smtp/email"
+    headers = {
+        "accept": "application/json",
+        "api-key": api_key,
+        "content-type": "application/json"
+    }
+    data = {
+        "sender": {"name": "LMS Analytics", "email": sender},
+        "to": [{"email": recipient_email}],
+        "subject": subject,
+        "textContent": body
+    }
+    
     try:
-        port_num = int(port) if port else 587
-    except ValueError:
-        port_num = 587
-
-    msg = MIMEMultipart()
-    msg['From'] = sender
-    msg['To'] = recipient_email
-    msg['Subject'] = subject
-    msg.attach(MIMEText(body, 'plain', 'utf-8'))
-
-    server = smtplib.SMTP(host, port_num)
-    server.starttls()
-    server.login(sender, pwd)
-    server.send_message(msg)
-    server.quit()
+        response = requests.post(url, headers=headers, json=data, timeout=15)
+        if not response.ok:
+            print(f"Brevo API Error: {response.text}")
+            raise Exception(f"Lỗi khi gửi email qua Brevo: {response.text}")
+    except Exception as e:
+        print(f"Email Error: {str(e)}")
+        raise e
 
 # 7. Quản lý can thiệp
 @router.post("/intervention")
