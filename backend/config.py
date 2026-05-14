@@ -24,7 +24,7 @@ API_PORT: int = int(os.getenv("API_PORT", "8000"))
 API_RELOAD: bool = os.getenv("API_RELOAD", "True").lower() == "true"
 
 # ========== CORS ==========
-CORS_ORIGINS_STR: str = os.getenv("CORS_ORIGINS", "http://127.0.0.1:5500,http://localhost:5500,http://127.0.0.1:8000,http://localhost:8000")
+CORS_ORIGINS_STR: str = os.getenv("CORS_ORIGINS", "http://127.0.0.1:5500,http://localhost:5500,http://127.0.0.1:8000,http://localhost:8000,https://lms-analytics-kappa.vercel.app")
 CORS_ORIGINS: List[str] = [origin.strip() for origin in CORS_ORIGINS_STR.split(",")]
 
 # ========== AI/GENERATIVE ==========
